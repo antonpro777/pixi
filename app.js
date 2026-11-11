@@ -154,9 +154,10 @@ function createStoryPicker(){
 
 
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
-let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='';
+let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='';
 
-function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';$('callAvatar').textContent=(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase()}
+function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';const av=$('callAvatar');av.textContent=(callPeerAvatarUrl?'':(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase());try{const u=new URL(callPeerAvatarUrl);av.style.backgroundImage=u.protocol==='https:'?'url("'+u.href.replaceAll('"','%22')+'")':'';av.style.backgroundSize='cover';av.style.backgroundPosition='center'}catch(_){av.style.backgroundImage=''}}
+async function loadCallPeerProfile(uid,fallback){try{const {data}=await sb.from('profiles').select('display_name,avatar_url').eq('id',uid).maybeSingle();callPeerName=data?.display_name||fallback||'Контакт';callPeerAvatarUrl=data?.avatar_url||''}catch(_){callPeerName=fallback||'Контакт';callPeerAvatarUrl=''}}
 function updateCallTimer(){if(!callStartedAt)return;const n=Math.floor((Date.now()-callStartedAt)/1000);$('callTimer').textContent=String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
 async function ensureCallChannel(cid=activeConversation){
  if(!cid)throw new Error('Сначала открой переписку.');
@@ -192,8 +193,8 @@ async function acceptVoiceCall(){
 }
 async function handleCallSignal(s){
  if(!s||s.from===user?.id)return;
- if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';callPeerName=s.name||'Контакт';callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden')}
- else if(s.type==='offer'){callPendingOffer=s.description;if(!callDirection){callDirection='incoming';callPeerName=s.name||'Контакт';callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden')}if($('callAcceptBtn').dataset.acceptRequested==='1')await acceptVoiceCall()}
+ if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden')}
+ else if(s.type==='offer'){callPendingOffer=s.description;if(!callDirection){callDirection='incoming';await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden')}if($('callAcceptBtn').dataset.acceptRequested==='1')await acceptVoiceCall()}
  else if(s.type==='answer'&&callPeer){try{await callPeer.setRemoteDescription(new RTCSessionDescription(s.description));for(const c of callPendingIce.splice(0)){await callPeer.addIceCandidate(new RTCIceCandidate(c))}}catch(err){console.warn(err)}}
  else if(s.type==='ice'){if(callPeer?.remoteDescription){try{await callPeer.addIceCandidate(new RTCIceCandidate(s.candidate))}catch(err){console.warn(err)}}else callPendingIce.push(s.candidate)}
  else if(['hangup','decline','busy'].includes(s.type)){await endVoiceCall(false);toast(s.type==='busy'?'Собеседник уже разговаривает.':s.type==='decline'?'Вызов отклонён.':'Звонок завершён.')}
@@ -223,7 +224,7 @@ async function refreshChatMessages(cid){
  $('chatMessages').scrollTop=$('chatMessages').scrollHeight;
 }
 async function openChat(cid,uid,name){
- activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
+ activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;await loadCallPeerProfile(uid,'@'+name);$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
  if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}
  await refreshChatMessages(cid);
  activeChatChannel=sb.channel('pixy-chat-'+cid).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+cid},payload=>{if(activeConversation===cid)refreshChatMessages(cid)}).subscribe();

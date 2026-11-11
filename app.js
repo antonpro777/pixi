@@ -25,7 +25,20 @@ function showApp(){ $('auth').classList.add('hidden');$('app').classList.remove(
 function nav(view){document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));const target=$('view-'+view);if(target)target.classList.remove('hidden');document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация']};$('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet()}
 document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c)$(c.dataset.close).classList.add('hidden')});
 $('showSignup').onclick=()=>setAuth('signup');
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return authStatus('Сервис входа пока недоступен.',true);const username=$('loginUsername').value.trim().toLowerCase();if(!/^[a-z0-9_.]{3,24}$/.test(username))return authStatus('Проверь username: 3–24 символа, латиница, цифры, точка или _.',true);authStatus('Входим в PIXY…');const {data,error}=await sb.auth.signInWithPassword({email:username+'@login.pixy.invalid',password:$('loginPassword').value});if(error)return authStatus('Не удалось войти. Проверь username и пароль.',true);user=data.user;await loadProfile();showApp()});
+$('loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ if(!sb)return authStatus('Сервис входа пока недоступен.',true);
+ const username=$('loginUsername').value.trim().toLowerCase();
+ if(!/^[a-z0-9_.]{3,24}$/.test(username))return authStatus('Проверь username: 3–24 символа, латиница, цифры, точка или _.',true);
+ authStatus('Входим в PIXY…');
+ try{
+  const result=await withTimeout(sb.auth.signInWithPassword({email:username+'@login.pixy.invalid',password:$('loginPassword').value}),12000,'Сервис входа не ответил за 12 секунд. Попробуй ещё раз.');
+  if(result.error)throw result.error;
+  user=result.data.user;
+  await loadProfile();
+  showApp();
+ }catch(error){console.error('PIXY login error:',error);authStatus(error?.message||'Не удалось войти. Проверь username и пароль.',true)}
+});
 $('signupForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const form=$('signupForm'),button=form.querySelector('button[type="submit"]');
@@ -43,16 +56,16 @@ $('signupForm').addEventListener('submit',async e=>{
   // Не делаем предварительный SELECT profiles: он зависает на REST API.
   // Уникальный индекс profiles_username_key сам защитит username от дублей.
   authStatus('Отправляем регистрацию в PIXY…');
-  const signupRequest=sb.auth.signUp({email:username+'@login.pixy.invalid',password,options:{data:{display_name:name,username}}});
-  const signupTimeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Сервис регистрации не ответил за 12 секунд. Аккаунт мог уже создаться — попробуй войти с этим username и паролем.')),12000));
-  const {data,error}=await Promise.race([signupRequest,signupTimeout]);
+  const {data,error}=await withTimeout(sb.auth.signUp({email:username+'@login.pixy.invalid',password,options:{data:{display_name:name,username}}}),12000,'Сервис регистрации не ответил за 12 секунд. Если аккаунт успел создаться, попробуй войти с теми же данными.');
   if(error)throw error;
-  if(!data.user)throw new Error('Сервис не вернул созданный аккаунт. Попробуй войти позже.');
-  if(!data.session){
-   authStatus('Аккаунт создан. Для входа нужно подтвердить email в настройках Supabase; адрес @login.pixy.invalid не принимает письма.',true);
-   return;
-  }
-  user=data.user;
+  if(!data.user)throw new Error('Сервис не вернул созданный аккаунт. Попробуй ещё раз.');
+  let session=data.session;
+  if(!session){
+   const loginResult=await withTimeout(sb.auth.signInWithPassword({email:username+'@login.pixy.invalid',password}),10000,'Аккаунт создан, но вход пока не ответил. Попробуй войти с теми же данными.');
+   if(loginResult.error)throw new Error('Аккаунт создан, но Supabase не выдал вход: '+loginResult.error.message);
+   session=loginResult.data.session;
+   user=loginResult.data.user;
+  }else user=data.user;
   // Профиль создаётся триггером в базе одновременно с auth.users.
   // Не отправляем отдельный REST-запрос profiles из браузера.
   profile={id:user.id,display_name:name,username};
@@ -70,7 +83,20 @@ $('resendCode').onclick=async()=>{if(!sb||!pendingEmail)return;const result=veri
 $('resetForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;pendingEmail=$('resetEmail').value.trim();verifyPurpose='recovery';const {error}=await sb.auth.resetPasswordForEmail(pendingEmail);if(error)return authStatus(error.message,true);setAuth('verify');authStatus('Код восстановления отправлен на '+pendingEmail)});
 $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;const {error}=await sb.auth.updateUser({password:$('newPassword').value});if(error)return authStatus(error.message,true);toast('Пароль обновлён');setAuth('login')});
 $('signOut').onclick=async()=>{if(sb)await sb.auth.signOut();user=null;profile=null;setAuth('login')};
-async function loadProfile(){if(!sb||!user)return;let {data,error}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();if(error){console.warn(error);return}if(!data){const meta=user.user_metadata||{};const row={id:user.id,display_name:meta.display_name||'Новый пользователь',username:meta.username||('pixy_'+user.id.slice(0,8))};const result=await sb.from('profiles').upsert(row).select().single();data=result.data}profile=data||null}
+function withTimeout(promise,ms,message){
+ let timer;
+ return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms)})]).finally(()=>clearTimeout(timer));
+}
+async function loadProfile(){
+ if(!sb||!user)return;
+ const meta=user.user_metadata||{};
+ profile={id:user.id,display_name:meta.display_name||'Новый пользователь',username:meta.username||('pixy_'+user.id.slice(0,8)),bio:'',avatar_url:null,profile_background:'Aurora',is_verified:false};
+ try{
+  const result=await withTimeout(sb.from('profiles').select('*').eq('id',user.id).maybeSingle(),5000,'Профиль загружается дольше обычного');
+  if(result.error)throw result.error;
+  if(result.data)profile=result.data;
+ }catch(error){console.warn('PIXY profile fallback:',error)}
+}
 async function loadFeed(){if(!sb)return;const {data,error}=await sb.from('posts').select('id,caption,media_url,media_type,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified)').eq('visibility','public').order('created_at',{ascending:false}).limit(30);if(error){console.warn(error);return}const feed=$('feed');if(!data?.length){feed.innerHTML='<div class="empty-state"><div class="empty-icon">✧</div><h2>Лента только начинается</h2><p>Опубликуй первый момент и позови друзей в PIXY.</p></div>';return}feed.innerHTML=data.map(p=>{const media=p.media_type==='video'?'<video controls playsinline src="'+safe(p.media_url)+'"></video>':'<img src="'+safe(p.media_url)+'" alt="Публикация">';return '<article class="post-card"><div class="post-head"><div class="avatar avatar-gradient">'+safe((p.profiles?.display_name||'P').slice(0,1))+'</div><div class="post-user"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge" title="Официальный аккаунт">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></div></div><div class="post-image">'+media+'</div><p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button data-like="'+p.id+'">♡ <span>Нравится</span></button><button data-comment="'+p.id+'">▢ <span>Комментировать</span></button></div><div class="reaction-row"><button data-react-post="'+p.id+'" data-reaction="❤️">❤️</button><button data-react-post="'+p.id+'" data-reaction="🤩">🤩</button><button data-react-post="'+p.id+'" data-reaction="😎">😎</button><button data-react-post="'+p.id+'" data-reaction="😂">😂</button><button data-react-post="'+p.id+'" data-reaction="🔥">🔥</button></div></article>'}).join('')}
 
 

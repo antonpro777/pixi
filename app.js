@@ -248,7 +248,7 @@ $('postFile').onchange=async e=>{
 $('cameraPhotoBtn').onclick=async()=>{
  try{
   stopCamera();cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-  const video=$('cameraPreview');video.srcObject=cameraStream;$('cameraStage').classList.remove('hidden');await video.play();
+  const video=$('cameraPreview');video.srcObject=cameraStream;$('cameraStage').classList.remove('hidden');await new Promise((resolve,reject)=>{if(video.readyState>=2)return resolve();video.onloadedmetadata=resolve;video.onerror=reject});await video.play();
   const canvas=$('cameraCanvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);
   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.92));if(!blob)throw new Error('Не удалось сделать фото.');
   setComposerFiles([new File([blob],'pixy-photo.jpg',{type:'image/jpeg'})],'single');stopCamera();
@@ -302,7 +302,7 @@ $('postForm').onsubmit=async e=>{
  }catch(err){console.error('PIXY publish error:',err);toast(err.message||'Ошибка публикации')}
  finally{btn.disabled=false;btn.textContent='Опубликовать ↗'}
 };
-$('feed').addEventListener('pointerdown',e=>{const box=e.target.closest('[data-carousel]');if(box)box.dataset.pointerStart=String(e.clientX)});
+$('feed').addEventListener('pointerdown',e=>{const box=e.target.closest('[data-carousel]');if(box){box.dataset.pointerStart=String(e.clientX);try{box.setPointerCapture(e.pointerId)}catch(_){}}});
 $('feed').addEventListener('pointerup',e=>{
  const box=e.target.closest('[data-carousel]');if(!box)return;
  const start=Number(box.dataset.pointerStart);delete box.dataset.pointerStart;

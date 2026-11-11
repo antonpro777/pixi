@@ -1,6 +1,7 @@
-// Copy the Supabase project URL and publishable (anon) key from your project API settings.
-// Never put a service_role key or database password in this browser file.
+// Public browser configuration for PIXY.
+// The publishable key is designed for client-side use with Supabase RLS enabled.
+// Never put a service_role key or database password in this file.
 window.PIXY_CONFIG = {
-  SUPABASE_URL: "YOUR_SUPABASE_PROJECT_URL",
-  SUPABASE_ANON_KEY: "YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY"
+  SUPABASE_URL: "https://mplxxwdtwuocwnymvroe.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_ry-Pl3Rxci8NiLb6gOiGmQ_HCK4nTDj"
 };

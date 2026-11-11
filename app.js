@@ -41,7 +41,9 @@ $('signupForm').addEventListener('submit',async e=>{
   if(password.length<8)return authStatus('Пароль должен содержать минимум 8 символов.',true);
   if(password!==passwordConfirm)return authStatus('Пароли не совпадают.',true);
   authStatus('Проверяем username…');
-  const {data:existing,error:lookupError}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
+  const lookupPromise=sb.from('profiles').select('id').eq('username',username).maybeSingle();
+  const lookupTimeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Проверка username не ответила за 8 секунд. Проверь соединение и попробуй ещё раз.')),8000));
+  const {data:existing,error:lookupError}=await Promise.race([lookupPromise,lookupTimeout]);
   if(lookupError)throw new Error('Не удалось проверить username: '+lookupError.message);
   if(existing)return authStatus('Этот username уже занят. Выбери другой.',true);
   authStatus('Отправляем регистрацию в PIXY…');

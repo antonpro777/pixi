@@ -29,3 +29,21 @@ PIXY is a responsive social-network starter built with HTML, CSS and vanilla Jav
 - `app.js` — front-end interactions and Supabase client calls
 - `config.js` — public Supabase client configuration placeholders
 - `supabase/schema.sql` — initial database schema and RLS policies
+
+
+## Current production limits
+
+- Post media: maximum 50 MB per file; JPEG, PNG, WebP, GIF, MP4, WebM.
+- Short videos: maximum 60 seconds (browser-side duration validation).
+- Profile avatar: maximum 5 MB; JPEG, PNG, WebP.
+- Post caption: maximum 2,200 characters.
+- Profile display name: maximum 40 characters; bio: maximum 160 characters.
+- Posts: 10 per user per day.
+- Stories: 20 per user per rolling 24 hours; each story expires within 24 hours.
+- Comments: 30 per user per hour.
+- Messages: 60 per user per minute.
+- Database-side activity limits are enforced by PostgreSQL triggers; media file-size and MIME limits are enforced by Supabase Storage.
+- Vercel Firewall is enabled. Advanced OWASP Core Ruleset is unavailable on the current Vercel plan and requires a plan upgrade.
+- Supabase security advisor currently reports no security lints after the rate-limit function permissions were restricted.
+
+These are initial anti-abuse limits and should be reviewed before a larger public launch.

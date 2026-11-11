@@ -360,3 +360,91 @@ body.call-active{overflow:hidden}
 @media(min-width:761px){
  body.chat-open .chat-messages{max-width:1100px;width:100%;margin:0 auto}
 }
+
+/* PIXY polish pass */
+.create-btn{border-radius:18px;padding:12px 18px;background:linear-gradient(135deg,#a98aff,#8a5af0 58%,#e982c8);box-shadow:0 8px 28px #9468e544;transition:transform .2s,box-shadow .2s}
+.create-btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px #9468e566}
+.create-btn span{display:inline-grid;place-items:center;width:23px;height:23px;margin-right:7px;border-radius:50%;background:#ffffff24;font-size:19px;line-height:1}
+.nav-item .nav-glyph{display:grid;place-items:center}
+.nav-glyph svg,.action-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.profile-actions{position:relative;display:flex;justify-content:flex-end;margin-top:-38px;gap:10px}
+.profile-primary-actions{display:flex;align-items:center;gap:9px}
+.profile-action-btn,.profile-more-btn{height:44px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #a78be94a;border-radius:15px;background:linear-gradient(145deg,#252033,#191722);color:#f4edff;font-size:11px;font-weight:800;box-shadow:0 8px 25px #0002;transition:transform .2s,border-color .2s,background .2s}
+.profile-action-btn:hover,.profile-more-btn:hover{transform:translateY(-2px);border-color:#c6a8ff99;background:#302544}
+.profile-message-btn{background:linear-gradient(120deg,#9672f2,#b47cf0 60%,#d77fc5);border-color:#d5baff55}
+.action-icon{width:26px;height:26px;display:grid;place-items:center;border-radius:9px;background:#ffffff20;font-size:16px}
+.profile-more-btn{width:46px;justify-content:center;padding:0;font-size:24px;letter-spacing:2px}
+.profile-more-menu{position:absolute;z-index:20;top:53px;right:0;width:min(260px,84vw);padding:8px;border:1px solid #ffffff1b;border-radius:18px;background:linear-gradient(150deg,#211c2d,#14121c);box-shadow:0 20px 60px #0009;animation:profileMenuIn .2s ease both}
+.profile-more-menu.hidden{display:none}
+@keyframes profileMenuIn{from{opacity:0;transform:translateY(-7px) scale(.98)}to{opacity:1;transform:none}}
+.profile-menu-item{width:100%;min-height:48px;display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:12px;background:transparent;color:#eee8fa;text-align:left;font-size:12px;font-weight:700}
+.profile-menu-item:hover{background:#ffffff0b}
+.profile-menu-item b,.profile-menu-item i{margin-left:auto;font-style:normal;color:#bfa9f7;font-size:11px}
+.menu-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:11px;background:#ffffff0c;color:#c9b1ff;font-size:17px}
+.wallet-icon{background:linear-gradient(145deg,#8060ce55,#bd91ff30);color:#d6c0ff}
+.shop-icon{background:linear-gradient(145deg,#b77bdf44,#f1a3d333);color:#f2b9ed}
+.signout-icon{color:#ffb0c1;background:#ff73901a}
+.profile-signout-btn{color:#ffb9c7}
+.notifications-head{display:flex;justify-content:space-between;align-items:center;padding:25px;border:1px solid #ffffff12;border-radius:22px;background:radial-gradient(ellipse at 85% 0%,#9b73ef2c,transparent 45%),linear-gradient(135deg,#252039,#171520)}
+.notifications-head h2{margin:14px 0 6px;font:800 23px Manrope}
+.notifications-head p{margin:0;color:#aaa3b7;font-size:11px}
+.notification-refresh{width:42px;height:42px;border-radius:14px;border:1px solid #ffffff20;background:#ffffff0d;color:#d9c5ff;font-size:23px}
+.notification-feed{display:grid;gap:9px;margin-top:16px}
+.notification-item{display:flex;align-items:center;gap:13px;padding:14px;border:1px solid #ffffff10;border-radius:16px;background:linear-gradient(120deg,#1a1824,#15141e);animation:pixyViewIn .28s ease both}
+.notification-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:14px;font-size:18px}
+.notification-icon.message{background:#9b7aff24;color:#c8b2ff}
+.notification-icon.follow{background:#75dfbf20;color:#8de8cb}
+.notification-icon.comment{background:#7cb8ff20;color:#9bcaff}
+.notification-icon.like{background:#f17ebf20;color:#ff9bc9}
+.notification-copy{min-width:0;flex:1}
+.notification-copy b{font-size:11px;color:#e7dcfa}
+.notification-copy p{margin:4px 0;color:#c4bdcf;font-size:11px;overflow-wrap:anywhere}
+.notification-copy small{font-size:9px;color:#817b91}
+.notification-arrow{color:#8d829f;font-size:22px}
+.notification-empty{min-height:210px;display:grid;align-content:center;justify-items:center;gap:8px;padding:25px;border:1px dashed #ffffff20;border-radius:18px;text-align:center;color:#9d96aa}
+.notification-empty>span{font-size:30px;color:#c3a4ff}
+.notification-empty b{font-size:13px;color:#e7dff4}
+.notification-empty p{max-width:330px;margin:0;font-size:11px;line-height:1.6}
+.call-overlay{background:radial-gradient(ellipse at 50% 35%,#33234c 0%,#100d1a 52%,#050509 100%);backdrop-filter:blur(22px)}
+.call-card{position:relative;width:min(100%,440px);min-height:min(680px,88dvh);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:46px 28px;border:1px solid #ffffff20;border-radius:32px;background:radial-gradient(ellipse at 50% 10%,#8c68bd28,transparent 55%),linear-gradient(155deg,#211a30,#111019 65%);box-shadow:0 28px 110px #000b}
+.call-orbit{position:absolute;width:290px;height:290px;border:1px solid #c4a3ff1c;border-radius:50%;pointer-events:none}
+.call-orbit-one{animation:orbit 16s linear infinite}
+.call-orbit-two{width:350px;height:350px;border-color:#f4a6d21c;animation:orbit 24s linear infinite reverse}
+.call-avatar{position:relative;z-index:1;width:136px;height:136px;border:5px solid #ffffff1c;box-shadow:0 0 0 12px #b08cff0b,0 0 80px #a477ff55;animation:callAvatarPulse 2.4s ease-in-out infinite}
+@keyframes callAvatarPulse{50%{box-shadow:0 0 0 20px #b08cff08,0 0 95px #a477ff77;transform:scale(1.025)}}
+.call-brand-label{margin:2px 0 16px;color:#bba7df;font-size:9px;letter-spacing:3px;font-weight:800}
+.call-card h2{font:800 28px Manrope;letter-spacing:-.5px}
+.call-card p{margin-bottom:4px}
+.call-timer{margin:15px 0 30px}
+.call-controls{width:100%;max-width:330px;grid-template-columns:1fr 1fr;gap:14px}
+.call-controls button{min-height:58px;border:1px solid #ffffff18;border-radius:19px;font-size:12px;transition:transform .18s,filter .18s}
+.call-controls button:active{transform:scale(.97)}
+.call-controls .call-accept,.call-controls .call-decline{min-height:76px;border:0;border-radius:24px;font-size:16px;box-shadow:0 10px 35px #0004}
+.call-controls .call-accept{background:linear-gradient(145deg,#37c98b,#16845d)}
+.call-controls .call-decline,.call-controls .call-hangup{background:linear-gradient(145deg,#fa7596,#c83e68)}
+.call-controls .call-accept span,.call-controls .call-decline span{display:block;margin-bottom:4px;font-size:24px}
+.call-controls .call-hangup{grid-column:1/-1;min-height:64px}
+.post-carousel{perspective:900px}
+.post-carousel img{transition:transform .34s cubic-bezier(.2,.75,.25,1),opacity .34s,filter .34s}
+.post-carousel.is-turning img{transform:translateX(-22px) rotateY(-9deg);opacity:.35;filter:blur(2px)}
+.post-carousel .carousel-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:4px 9px;border-radius:20px;background:#09080db0;color:#ffffffa8;font-size:9px;pointer-events:none;opacity:0;transition:opacity .2s}
+.post-carousel:hover .carousel-hint{opacity:1}
+@media(max-width:760px){
+ .profile-actions{justify-content:flex-start;margin:14px 0 0}
+ .profile-primary-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 48px;gap:8px}
+ .profile-action-btn{justify-content:center;min-width:0;padding:0 8px}
+ .profile-action-btn>span:last-child{white-space:nowrap}
+ .profile-more-btn{width:48px}
+ .profile-more-menu{top:54px;right:0}
+ .notifications-head{padding:18px}
+ .notifications-head h2{font-size:20px}
+ .call-overlay{padding:0}
+ .call-card{width:100%;height:100dvh;min-height:100dvh;border:0;border-radius:0;padding:calc(50px + env(safe-area-inset-top)) 22px calc(30px + env(safe-area-inset-bottom))}
+ .call-avatar{width:150px;height:150px}
+ .call-controls{max-width:360px;gap:12px}
+ .call-controls .call-accept,.call-controls .call-decline{min-height:88px}
+ .nav{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:4px!important}
+ .nav-item[data-view="notifications"]{display:flex!important}
+ .nav-item[data-view="messages"] span,.nav-item[data-view="notifications"] span{font-size:8px}
+ .nav-item[data-view="messages"] b,.nav-item[data-view="notifications"] b{font-size:21px}
+}

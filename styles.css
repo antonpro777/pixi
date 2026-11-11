@@ -10,3 +10,5 @@
 .brand-symbol{background:linear-gradient(145deg,#b5a0ff,#7252d8 62%,#7b6bf0)}
 .art-core{background:linear-gradient(145deg,#b5a0ff,#7252d8 62%,#7b6bf0)}
 .auth-p{background:linear-gradient(145deg,#b5a0ff,#7252d8 62%,#7b6bf0)}
+
+@media(max-width:760px){.chat-layout{grid-template-columns:1fr!important}.chat-sidebar{max-height:220px;overflow:auto}.chat-panel{min-height:360px}.chat-panel form{flex-wrap:wrap}.chat-panel form input{min-width:100%!important}.shop-tile{cursor:pointer}}

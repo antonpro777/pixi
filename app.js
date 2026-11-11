@@ -349,12 +349,13 @@ $('feed').addEventListener('click',async e=>{
 });
 
 let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,recordCountdownTimer=null,recordStartedAt=0,cameraFacing='environment',captureMode='photo',cameraBusy=false;
-let selectedMusicId='',pickerMusicId='',recordAudioContext=null,recordMusicElement=null;
+let selectedMusicId='',pickerMusicId='',recordAudioContext=null,recordMusicElement=null,cameraZoomHardware=false,zoomCanvasStream=null,zoomRenderFrame=0;
 function stopRecordingAudio(){
  if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.currentTime=0}catch(_){}recordMusicElement=null}
  if(recordAudioContext){const ctx=recordAudioContext;recordAudioContext=null;try{ctx.close()}catch(_){}}
 }
 function stopCamera(){
+ stopZoomRender();
  if(recordTimer){clearTimeout(recordTimer);recordTimer=null}
  if(mediaRecorder?.state==='recording'){try{mediaRecorder.stop()}catch(_){}}
  stopRecordingAudio();
@@ -364,12 +365,36 @@ function stopCamera(){
 
 function setupCameraZoom(){
  const input=$('cameraZoom'),label=$('cameraZoomValue'),track=cameraStream?.getVideoTracks?.()[0];if(!input||!track)return;
- try{const z=track.getCapabilities?.().zoom;if(!z){input.disabled=true;input.min='1';input.max='1';input.value='1';if(label)label.textContent='1×';input.title='Зум не поддерживается камерой';return}
- input.disabled=false;input.min=String(z.min??1);input.max=String(Math.min(z.max??4,8));input.step=String(z.step??0.1);
- const v=track.getSettings?.().zoom??z.min??1;input.value=String(Math.min(Number(input.max),Math.max(Number(input.min),v)));if(label)label.textContent=Number(input.value).toFixed(1)+'×';
- }catch(err){input.disabled=true;console.warn('PIXY zoom:',err)}
+ try{
+  const z=track.getCapabilities?.().zoom;
+  if(z){cameraZoomHardware=true;input.disabled=false;input.min=String(z.min??1);input.max=String(Math.min(z.max??4,8));input.step=String(z.step??0.1);const v=track.getSettings?.().zoom??z.min??1;input.value=String(Math.min(Number(input.max),Math.max(Number(input.min),v)));input.title='Аппаратный зум камеры'}
+  else{cameraZoomHardware=false;input.disabled=false;input.min='1';input.max='4';input.step='0.1';input.value='1';input.title='Цифровой зум'}
+  if(label)label.textContent=Number(input.value).toFixed(1)+'×';
+  $('cameraPreview').style.transform=cameraZoomHardware?'':'scale(1)';
+ }catch(err){cameraZoomHardware=false;input.disabled=false;input.min='1';input.max='4';input.step='0.1';input.value='1';console.warn('PIXY zoom:',err)}
 }
-$('cameraZoom')?.addEventListener('input',async e=>{const track=cameraStream?.getVideoTracks?.()[0],v=Number(e.target.value);if(!track)return;$('cameraZoomValue').textContent=v.toFixed(1)+'×';try{await track.applyConstraints({advanced:[{zoom:v}]})}catch(err){console.warn(err);toast('Зум не поддерживается этой камерой.')}});
+$('cameraZoom')?.addEventListener('input',async e=>{
+ const track=cameraStream?.getVideoTracks?.()[0],v=Number(e.target.value);if(!track)return;
+ $('cameraZoomValue').textContent=v.toFixed(1)+'×';
+ if(cameraZoomHardware){try{await track.applyConstraints({advanced:[{zoom:v}]})}catch(err){console.warn(err);toast('Не удалось изменить аппаратный зум.')}}else $('cameraPreview').style.transform='scale('+v+')';
+});
+function makeZoomedVideoTrack(){
+ const original=cameraStream?.getVideoTracks?.()[0];if(!original||cameraZoomHardware)return original;
+ const video=$('cameraPreview');if(!video.videoWidth||!video.videoHeight)return original;
+ const canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+ const ctx=canvas.getContext('2d',{alpha:false});zoomCanvasStream=canvas.captureStream(30);
+ const draw=()=>{
+  if(!zoomCanvasStream||!cameraStream)return;
+  const z=Math.max(1,Number($('cameraZoom')?.value)||1),sw=video.videoWidth/z,sh=video.videoHeight/z;
+  if(sw&&sh)ctx.drawImage(video,(video.videoWidth-sw)/2,(video.videoHeight-sh)/2,sw,sh,0,0,canvas.width,canvas.height);
+  zoomRenderFrame=requestAnimationFrame(draw);
+ };
+ draw();return zoomCanvasStream.getVideoTracks()[0]||original;
+}
+function stopZoomRender(){
+ if(zoomRenderFrame)cancelAnimationFrame(zoomRenderFrame);zoomRenderFrame=0;
+ if(zoomCanvasStream){zoomCanvasStream.getTracks().forEach(t=>t.stop());zoomCanvasStream=null}
+}
 
 async function startCamera(){
  stopCamera();
@@ -476,7 +501,8 @@ $('postForm').addEventListener('submit',async e=>{
 });
 async function makeRecordingStream(){
  const selected=availableMusic.find(t=>t.id===selectedMusicId);
- if(!selected)return cameraStream;
+ const zoomTrack=makeZoomedVideoTrack();
+ if(!selected)return new MediaStream([zoomTrack,...cameraStream.getAudioTracks()]);
  const AudioCtx=window.AudioContext||window.webkitAudioContext;
  if(!AudioCtx||!window.MediaStreamAudioDestinationNode)throw new Error('Этот браузер не поддерживает запись музыки вместе с видео.');
  const ctx=new AudioCtx();recordAudioContext=ctx;await ctx.resume();
@@ -487,7 +513,7 @@ async function makeRecordingStream(){
  const source=ctx.createMediaElementSource(music);source.connect(mixed);source.connect(ctx.destination);
  recordMusicElement=music;
  try{await music.play()}catch(err){stopRecordingAudio();throw new Error('Не удалось запустить выбранный трек. Попробуй выбрать его ещё раз.')}
- return new MediaStream([...cameraStream.getVideoTracks(),...mixed.stream.getAudioTracks()]);
+ return new MediaStream([zoomTrack,...mixed.stream.getAudioTracks()]);
 }
 function stopVideoRecording(auto=false){
  if(mediaRecorder?.state!=='recording')return;
@@ -501,7 +527,7 @@ $('captureShutter').onclick=async()=>{
  try{
   if(captureMode==='photo'){
    const v=$('cameraPreview');if(!cameraStream||!v.videoWidth)await startCamera();if(!v.videoWidth)throw Error('Камера ещё не готова.');
-   const c=$('cameraCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
+   const c=$('cameraCanvas');c.width=v.videoWidth;c.height=v.videoHeight;const z=cameraZoomHardware?1:Math.max(1,Number($('cameraZoom').value)||1),sw=v.videoWidth/z,sh=v.videoHeight/z;c.getContext('2d').drawImage(v,(v.videoWidth-sw)/2,(v.videoHeight-sh)/2,sw,sh,0,0,c.width,c.height);
    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.93));if(!b)throw Error('Не удалось сделать фото.');
    setComposerFiles([new File([b],'pixy-photo.jpg',{type:'image/jpeg'})],'single');
    $('captureShutter').classList.add('photo-flash');setTimeout(()=>$('captureShutter').classList.remove('photo-flash'),180);
@@ -517,7 +543,7 @@ $('captureShutter').onclick=async()=>{
    mediaRecorder.onstop=()=>{
     if(recordTimer){clearTimeout(recordTimer);recordTimer=null}
     if(recordCountdownTimer){clearInterval(recordCountdownTimer);recordCountdownTimer=null}
-    stopRecordingAudio();
+    stopRecordingAudio();stopZoomRender();
     const rec=mediaRecorder;
     const blob=new Blob(recordedChunks,{type:rec?.mimeType||'video/webm'});
     if(blob.size>50*1024*1024){

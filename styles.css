@@ -448,3 +448,42 @@ body.call-active{overflow:hidden}
  .nav-item[data-view="messages"] span,.nav-item[data-view="notifications"] span{font-size:8px}
  .nav-item[data-view="messages"] b,.nav-item[data-view="notifications"] b{font-size:21px}
 }
+
+/* Requested layout refinement */
+.top-actions{gap:7px}
+.top-actions .create-btn{padding:8px 11px;border-radius:12px;font-size:10px;box-shadow:0 5px 16px #9468e52a}
+.top-actions .create-btn span{width:19px;height:19px;font-size:16px;margin-right:4px}
+.top-actions .icon-btn{position:relative;width:38px;height:38px;display:grid;place-items:center;border-radius:12px}
+.top-actions .icon-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.top-notifications-btn .nav-dot{position:absolute;right:7px;top:6px;width:7px;height:7px;border:1px solid #17131f}
+.profile-primary-actions{grid-template-columns:auto 48px}
+.profile-more-menu{position:fixed;inset:0;z-index:1000;width:100%;height:100dvh;max-height:100dvh;overflow-y:auto;padding:calc(18px + env(safe-area-inset-top)) max(20px,calc((100vw - 560px)/2)) calc(24px + env(safe-area-inset-bottom));border:0;border-radius:0;background:radial-gradient(ellipse at 80% 0%,#9067d82b,transparent 42%),linear-gradient(155deg,#1c1928,#0e0d14 72%);box-shadow:none;animation:profileMenuPageIn .24s ease both}
+.profile-more-menu.hidden{display:none}
+@keyframes profileMenuPageIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.profile-more-header{display:flex;align-items:center;gap:16px;padding:12px 0 28px;border-bottom:1px solid #ffffff16}
+.profile-more-header>button{width:44px;height:44px;border:1px solid #ffffff1b;border-radius:15px;background:#ffffff0b;color:#eee5ff;font-size:32px;line-height:1}
+.profile-more-header>div{display:grid;gap:5px}
+.profile-more-header span{font-size:9px;letter-spacing:2px;color:#a994cf;font-weight:800}
+.profile-more-header h2{margin:0;color:#f5efff;font:800 25px Manrope}
+.profile-more-content{display:grid;gap:10px;max-width:520px;margin:25px auto}
+.profile-more-content .profile-menu-item{min-height:76px;padding:13px 15px;border:1px solid #ffffff13;border-radius:18px;background:linear-gradient(120deg,#ffffff0a,#ffffff04);font-size:14px}
+.profile-more-content .profile-menu-item:hover{background:#ffffff10;border-color:#b99aff55;transform:translateY(-1px)}
+.profile-more-content .menu-icon{width:44px;height:44px;border-radius:14px;font-size:21px}
+.profile-more-content .profile-menu-item b,.profile-more-content .profile-menu-item i{font-size:12px}
+@media(max-width:760px){
+ .sidebar{height:78px;padding:8px 14px calc(8px + env(safe-area-inset-bottom))}
+ .nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;align-items:center;justify-content:stretch;gap:5px!important;overflow:visible}
+ .nav-item{display:flex!important;min-width:0;width:100%;height:56px;gap:3px;padding:4px 2px;flex-direction:column;justify-content:center}
+ .nav-item[data-view="videos"],.nav-item[data-view="wallet"],.nav-item[data-view="shop"],.nav-item[data-view="moderation"],.nav-item[data-view="notifications"]{display:none!important}
+ .nav-item[data-view="home"],.nav-item[data-view="search"],.nav-item[data-view="messages"],.nav-item[data-view="profile"]{display:flex!important}
+ .nav-create-btn{display:grid!important;place-items:center;justify-self:center;align-self:center;width:47px;height:47px;margin:0;border-radius:50%;background:linear-gradient(145deg,#b39aff,#8558ed 65%,#e982c8);color:#fff;font-size:27px;line-height:1;box-shadow:0 5px 18px #9166e955;border:3px solid #12111b;transform:none}
+ .nav-item span{font-size:8px}
+ .topbar{gap:8px}
+ .top-actions{gap:5px}
+ .top-actions .create-btn{padding:7px 9px;font-size:9px}
+ .top-actions .icon-btn{width:35px;height:35px}
+ .profile-actions{justify-content:flex-start}
+ .profile-primary-actions{grid-template-columns:48px;display:flex}
+ .profile-edit-btn{display:none}
+}
+@media(max-width:380px){.nav-create-btn{width:43px;height:43px;font-size:25px}.top-actions .create-btn{padding:6px 8px}}

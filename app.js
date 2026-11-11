@@ -43,22 +43,19 @@ $('signupForm').addEventListener('submit',async e=>{
   // Не делаем предварительный SELECT profiles: он зависает на REST API.
   // Уникальный индекс profiles_username_key сам защитит username от дублей.
   authStatus('Отправляем регистрацию в PIXY…');
-  const {data,error}=await sb.auth.signUp({email:username+'@login.pixy.invalid',password,options:{data:{display_name:name,username}}});
+  const signupRequest=sb.auth.signUp({email:username+'@login.pixy.invalid',password,options:{data:{display_name:name,username}}});
+  const signupTimeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Сервис регистрации не ответил за 12 секунд. Аккаунт мог уже создаться — попробуй войти с этим username и паролем.')),12000));
+  const {data,error}=await Promise.race([signupRequest,signupTimeout]);
   if(error)throw error;
+  if(!data.user)throw new Error('Сервис не вернул созданный аккаунт. Попробуй войти позже.');
   if(!data.session){
-   authStatus('Supabase создал запрос регистрации, но требует подтверждение email. Адрес @login.pixy.invalid не принимает письма. Владелец проекта должен выключить Authentication → Providers → Email → Confirm email, иначе вход не заработает.',true);
+   authStatus('Аккаунт создан. Для входа нужно подтвердить email в настройках Supabase; адрес @login.pixy.invalid не принимает письма.',true);
    return;
   }
   user=data.user;
-  const profileRow={id:user.id,display_name:name,username};
-  const profileRequest=sb.from('profiles').upsert(profileRow).select().single();
-  const profileTimeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Аккаунт создан, но профиль не сохранился за 10 секунд. Попробуй войти позже.')),10000));
-  const {data:createdProfile,error:profileError}=await Promise.race([profileRequest,profileTimeout]);
-  if(profileError){
-   if(profileError.code==='23505')throw new Error('Этот username уже занят. Выбери другой.');
-   throw profileError;
-  }
-  profile=createdProfile;
+  // Профиль создаётся триггером в базе одновременно с auth.users.
+  // Не отправляем отдельный REST-запрос profiles из браузера.
+  profile={id:user.id,display_name:name,username};
   showApp();
   toast('Добро пожаловать в PIXY!');
  }catch(error){

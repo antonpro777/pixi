@@ -92,7 +92,7 @@ $('resetForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)ret
 $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;const {error}=await sb.auth.updateUser({password:$('newPassword').value});if(error)return authStatus(error.message,true);toast('Пароль обновлён');setAuth('login')});
 async function signOutOfPixy(){
  try{if(sb){const {error}=await sb.auth.signOut();if(error)throw error}
-  user=null;profile=null;activeConversation=null;activeChatUser=null;
+  user=null;profile=null;activeConversation=null;activeChatUser=null;document.body.classList.remove('chat-open','call-active');
   setAuth('login');toast('Ты вышел из аккаунта PIXY.');
  }catch(error){console.error('PIXY sign out:',error);toast('Не удалось выйти: '+(error?.message||'ошибка'))}
 }
@@ -163,7 +163,7 @@ function createStoryPicker(){
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
 let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='';
 
-function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';const av=$('callAvatar');av.textContent=(callPeerAvatarUrl?'':(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase());try{const u=new URL(callPeerAvatarUrl);av.style.backgroundImage=u.protocol==='https:'?'url("'+u.href.replaceAll('"','%22')+'")':'';av.style.backgroundSize='cover';av.style.backgroundPosition='center'}catch(_){av.style.backgroundImage=''}}
+function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);document.body.classList.toggle('call-active',!!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';const av=$('callAvatar');av.textContent=(callPeerAvatarUrl?'':(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase());try{const u=new URL(callPeerAvatarUrl);av.style.backgroundImage=u.protocol==='https:'?'url("'+u.href.replaceAll('"','%22')+'")':'';av.style.backgroundSize='cover';av.style.backgroundPosition='center'}catch(_){av.style.backgroundImage=''}}
 async function loadCallPeerProfile(uid,fallback){try{const {data}=await sb.from('profiles').select('display_name,avatar_url').eq('id',uid).maybeSingle();callPeerName=data?.display_name||fallback||'Контакт';callPeerAvatarUrl=data?.avatar_url||''}catch(_){callPeerName=fallback||'Контакт';callPeerAvatarUrl=''}}
 function updateCallTimer(){if(!callStartedAt)return;const n=Math.floor((Date.now()-callStartedAt)/1000);$('callTimer').textContent=String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
 async function ensureCallChannel(cid=activeConversation){
@@ -207,7 +207,7 @@ async function handleCallSignal(s){
  else if(['hangup','decline','busy'].includes(s.type)){await endVoiceCall(false);toast(s.type==='busy'?'Собеседник уже разговаривает.':s.type==='decline'?'Вызов отклонён.':'Звонок завершён.')}
 }
 async function endVoiceCall(notify=true){
- if(notify&&activeCallChannel){try{await sendCallSignal('hangup')}catch(_){}}
+ if(notify&&activeCallChannel){try{await sendCallSignal(callDirection==='incoming'?'decline':'hangup')}catch(_){}}
  if(callTimer){clearInterval(callTimer);callTimer=null}if(callPeer){try{callPeer.close()}catch(_){}callPeer=null}if(callLocalStream){callLocalStream.getTracks().forEach(t=>t.stop());callLocalStream=null}
  const a=$('callRemoteAudio');a.pause();a.srcObject=null;a.muted=false;callPendingOffer=null;callPendingIce=[];callStartedAt=0;callMuted=false;callSpeakerOn=true;callDirection='';
  $('callTimer').textContent='00:00';$('callMuteBtn').textContent='Выключить микрофон';$('callSpeakerBtn').textContent='Выключить громкую связь';$('callAcceptBtn').dataset.acceptRequested='0';callUi(false,'');
@@ -231,14 +231,14 @@ async function refreshChatMessages(cid){
  $('chatMessages').scrollTop=$('chatMessages').scrollHeight;
 }
 async function openChat(cid,uid,name){
- activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;await loadCallPeerProfile(uid,'@'+name);$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
+ activeConversation=cid;activeChatUser=uid;document.body.classList.add('chat-open');$('chatTitle').textContent='@'+name;await loadCallPeerProfile(uid,'@'+name);$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
  if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}
  await refreshChatMessages(cid);
  activeChatChannel=sb.channel('pixy-chat-'+cid).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+cid},payload=>{if(activeConversation===cid)refreshChatMessages(cid)}).subscribe();
  try{await ensureCallChannel(cid)}catch(err){console.warn('PIXY call channel:',err)}
 }
 $('chatList').addEventListener('click',e=>{const b=e.target.closest('[data-chat]');if(b)openChat(b.dataset.chat,b.dataset.chatUser,b.dataset.chatName)});
-$('chatBackBtn').onclick=async()=>{if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}if(activeCallChannel&&!callDirection){await sb.removeChannel(activeCallChannel);activeCallChannel=null;callChannelConversation=null}activeConversation=null;activeChatUser=null;$('chatConversationPanel').classList.add('hidden');$('chatPeoplePanel').classList.remove('hidden');};
+$('chatBackBtn').onclick=async()=>{if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}if(activeCallChannel&&!callDirection){await sb.removeChannel(activeCallChannel);activeCallChannel=null;callChannelConversation=null}activeConversation=null;activeChatUser=null;document.body.classList.remove('chat-open');$('chatConversationPanel').classList.add('hidden');$('chatPeoplePanel').classList.remove('hidden');};
 $('chatSendForm').onsubmit=async e=>{
  e.preventDefault();const body=$('chatMessageInput').value.trim();if(!activeConversation||!body)return;
  const {error}=await sb.from('messages').insert({conversation_id:activeConversation,sender_id:user.id,body});

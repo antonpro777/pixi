@@ -99,7 +99,8 @@ async function signOutOfPixy(){
 }
 $('signOut').onclick=signOutOfPixy;
 $('signOutProfile')?.addEventListener('click',signOutOfPixy);
-$('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu');menu.classList.toggle('hidden');const open=!menu.classList.contains('hidden');$('profileMoreBtn').setAttribute('aria-expanded',String(open));});
+$('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu');menu.classList.remove('hidden');$('profileMoreBtn').setAttribute('aria-expanded','true');});
+$('profileMoreClose')?.addEventListener('click',()=>{$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');});
 $('refreshNotifications')?.addEventListener('click',loadNotifications);
 document.addEventListener('click',e=>{if(!e.target.closest('.profile-actions')){$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false')}});
 

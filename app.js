@@ -292,7 +292,7 @@ $('feed').addEventListener('click',async e=>{
  if(c){openComments(c.dataset.comment);return}
 });
 
-let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,cameraFacing='environment',captureMode='photo',cameraBusy=false;
+let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,recordCountdownTimer=null,recordStartedAt=0,cameraFacing='environment',captureMode='photo',cameraBusy=false;
 let selectedMusicId='',pickerMusicId='',recordAudioContext=null,recordMusicElement=null;
 function stopRecordingAudio(){
  if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.currentTime=0}catch(_){}recordMusicElement=null}
@@ -348,6 +348,61 @@ $('postFile').onchange=async e=>{
  if(vid){const d=await readVideoDuration(fs[0]);if(d!==null&&d>20.05){toast('Видео должно быть не длиннее 20 секунд.');e.target.value='';return}setComposerFiles(fs,'video')}
  else setComposerFiles(fs,fs.length>1?'carousel':'single');
 };
+
+$('postForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ e.stopPropagation();
+ if(!sb||!user)return toast('Сначала войди в PIXY.');
+ const form=$('postForm'),button=form.querySelector('button[type="submit"]');
+ const files=selectedFiles.slice();
+ if(!files.length)return toast('Сначала запиши видео или выбери файл.');
+ if(files.some(file=>file.size>50*1024*1024))return toast('Файл больше 50 МБ. Выбери файл поменьше.');
+ button.disabled=true;
+ const oldText=button.textContent;
+ button.textContent='Публикую…';
+ try{
+  const uploaded=[];
+  for(let i=0;i<files.length;i++){
+   const file=files[i];
+   const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';
+   const path=user.id+'/posts/'+crypto.randomUUID()+'.'+ext;
+   const {error:uploadError}=await sb.storage.from('pixy-media').upload(path,file,{contentType:file.type||'application/octet-stream'});
+   if(uploadError)throw uploadError;
+   const url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl;
+   uploaded.push({url,type:file.type.startsWith('video/')?'video':'image'});
+  }
+  const isVideo=files.length===1&&files[0].type.startsWith('video/');
+  const isRecordedVideo=isVideo&&files[0].name==='pixy-video.webm';
+  const track=availableMusic.find(t=>t.id===selectedMusicId)||null;
+  const payload={
+   author_id:user.id,
+   caption:$('postCaption').value.trim(),
+   media_url:uploaded[0].url,
+   media_type:isVideo?'video':'image',
+   media_items:isVideo?null:uploaded,
+   music_url:track&&!isRecordedVideo?track.audio_url:null,
+   music_title:track?.title||null,
+   visibility:'public'
+  };
+  const {error:insertError}=await sb.from('posts').insert(payload);
+  if(insertError)throw insertError;
+  stopCamera();
+  $('composerModal').classList.add('hidden');
+  $('soundPicker').classList.add('hidden');
+  $('cameraPublishPanel').classList.add('hidden');
+  $('postCaption').value='';
+  $('postFile').value='';
+  selectedFiles=[];selectedFile=null;
+  toast('Публикация добавлена в PIXY!');
+  await Promise.all([loadFeed(),loadProfilePosts()]);
+ }catch(err){
+  console.error('PIXY publish error:',err);
+  toast('Не удалось опубликовать: '+(err?.message||'ошибка загрузки'));
+ }finally{
+  button.disabled=false;
+  button.textContent=oldText;
+ }
+});
 async function makeRecordingStream(){
  const selected=availableMusic.find(t=>t.id===selectedMusicId);
  if(!selected)return cameraStream;
@@ -363,6 +418,13 @@ async function makeRecordingStream(){
  try{await music.play()}catch(err){stopRecordingAudio();throw new Error('Не удалось запустить выбранный трек. Попробуй выбрать его ещё раз.')}
  return new MediaStream([...cameraStream.getVideoTracks(),...mixed.stream.getAudioTracks()]);
 }
+function stopVideoRecording(auto=false){
+ if(mediaRecorder?.state!=='recording')return;
+ if(recordTimer){clearTimeout(recordTimer);recordTimer=null}
+ if(recordCountdownTimer){clearInterval(recordCountdownTimer);recordCountdownTimer=null}
+ $('cameraHint').textContent=auto?'20 секунд прошло · сохраняю видео…':'Сохраняю видео и музыку…';
+ try{mediaRecorder.stop()}catch(err){console.error('PIXY recorder stop:',err)}
+}
 $('captureShutter').onclick=async()=>{
  if(cameraBusy)return;cameraBusy=true;
  try{
@@ -373,22 +435,39 @@ $('captureShutter').onclick=async()=>{
    setComposerFiles([new File([b],'pixy-photo.jpg',{type:'image/jpeg'})],'single');
    $('captureShutter').classList.add('photo-flash');setTimeout(()=>$('captureShutter').classList.remove('photo-flash'),180);
   }else if(mediaRecorder?.state==='recording'){
-   mediaRecorder.stop();$('cameraHint').textContent='Сохраняю видео и музыку…';
+   stopVideoRecording(false);
   }else{
    if(!cameraStream)await startCamera();if(!cameraStream)throw Error('Не удалось включить камеру.');
    const recordStream=await makeRecordingStream();
    const mt=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
-   mediaRecorder=new MediaRecorder(recordStream,mt?{mimeType:mt}:undefined);recordedChunks=[];
+   mediaRecorder=new MediaRecorder(recordStream,{...(mt?{mimeType:mt}:{}),videoBitsPerSecond:2500000,audioBitsPerSecond:128000});
+   recordedChunks=[];
    mediaRecorder.ondataavailable=e=>{if(e.data?.size)recordedChunks.push(e.data)};
    mediaRecorder.onstop=()=>{
-    clearTimeout(recordTimer);recordTimer=null;stopRecordingAudio();
-    const b=new Blob(recordedChunks,{type:mediaRecorder.mimeType||'video/webm'});
-    if(b.size){setComposerFiles([new File([b],'pixy-video.webm',{type:'video/webm'})],'video');$('cameraHint').textContent='Видео с музыкой готово к публикации'}
+    if(recordTimer){clearTimeout(recordTimer);recordTimer=null}
+    if(recordCountdownTimer){clearInterval(recordCountdownTimer);recordCountdownTimer=null}
+    stopRecordingAudio();
+    const rec=mediaRecorder;
+    const blob=new Blob(recordedChunks,{type:rec?.mimeType||'video/webm'});
+    if(blob.size>50*1024*1024){
+     $('cameraHint').textContent='Видео слишком большое';
+     toast('Видео получилось больше 50 МБ. Попробуй записать ещё раз.');
+    }else if(blob.size){
+     setComposerFiles([new File([blob],'pixy-video.webm',{type:blob.type||'video/webm'})],'video');
+     $('cameraHint').textContent='Видео готово к публикации';
+    }else $('cameraHint').textContent='Не удалось сохранить запись. Попробуй ещё раз.';
     $('captureShutter').classList.remove('recording');
    };
-   mediaRecorder.start(200);$('captureShutter').classList.add('recording');
-   $('cameraHint').textContent=selectedMusicId?'Идёт запись · музыка записывается в видео':'Идёт запись · максимум 20 секунд';
-   recordTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop()},20000);
+   mediaRecorder.start(250);
+   recordStartedAt=Date.now();
+   $('captureShutter').classList.add('recording');
+   $('cameraHint').textContent=selectedMusicId?'Идёт запись · 20 секунд':'Идёт запись · 20 секунд';
+   recordCountdownTimer=setInterval(()=>{
+    if(mediaRecorder?.state!=='recording')return;
+    const left=Math.max(0,20-Math.floor((Date.now()-recordStartedAt)/1000));
+    $('cameraHint').textContent='Идёт запись · '+left+' сек.';
+   },250);
+   recordTimer=setTimeout(()=>stopVideoRecording(true),20000);
   }
  }catch(err){toast(err.message||'Ошибка камеры.')}finally{cameraBusy=false}
 };

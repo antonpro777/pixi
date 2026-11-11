@@ -2,6 +2,22 @@
 const cfg=window.PIXY_CONFIG||{};const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes('YOUR_')&&!cfg.SUPABASE_ANON_KEY.includes('YOUR_'));
 const sb=ready&&window.supabase?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY):null;
 const $=id=>document.getElementById(id);let user=null,profile=null,pendingEmail='',authMode='login',verifyPurpose='signup',selectedFile=null;
+function revealStartupFallback(message){
+ const splash=$('splash'),app=$('app'),auth=$('auth');
+ if(splash)splash.style.display='none';
+ if(app?.classList.contains('hidden')&&auth?.classList.contains('hidden')){
+  setAuth('login');
+  authStatus(message,true);
+ }
+}
+window.addEventListener('error',event=>{
+ console.error('PIXY startup error:',event.error||event.message);
+ revealStartupFallback('Не удалось полностью запустить PIXY. Проверь подключение и обнови страницу.');
+});
+window.addEventListener('unhandledrejection',event=>{
+ console.error('PIXY startup request failed:',event.reason);
+ revealStartupFallback('Не удалось подключиться к сервису. Попробуй обновить страницу.');
+});
 const toast=(m)=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)};
 const authStatus=(m,err=false)=>{$('authStatus').textContent=m;$('authStatus').style.color=err?'#ff9dba':'#9debd6'};
 const setAuth=(mode)=>{authMode=mode;['loginForm','signupForm','verifyForm','resetForm','newPasswordForm'].forEach(id=>$(id).classList.add('hidden'));$(mode+'Form').classList.remove('hidden');$('auth').classList.remove('hidden');$('app').classList.add('hidden');$('authStatus').textContent='';$('authSwitch').classList.toggle('hidden',mode==='verify'||mode==='reset'||mode==='newPassword');$('authTitle').textContent=mode==='signup'?'Создай свой мир.':mode==='verify'?'Проверь почту.':mode==='reset'?'Восстановим доступ.':mode==='newPassword'?'Новый пароль.':'С возвращением.';$('authSub').textContent=mode==='signup'?'Присоединяйся к PIXY.':mode==='verify'?'Мы отправили тебе код подтверждения.':mode==='reset'?'Отправим код для восстановления.':mode==='newPassword'?'Придумай новый надёжный пароль.':'Войди в свой мир PIXY.';$('authSwitch').innerHTML=mode==='signup'?'Уже есть аккаунт? <button id="showLogin">Войти</button>':mode==='login'?'Впервые здесь? <button id="showSignup">Создать аккаунт</button>':'<button id="backLogin">← Вернуться ко входу</button>';if($('showLogin'))$('showLogin').onclick=()=>setAuth('login');if($('showSignup'))$('showSignup').onclick=()=>setAuth('signup');if($('backLogin'))$('backLogin').onclick=()=>setAuth('login')};
@@ -217,5 +233,11 @@ $('moderationResults').addEventListener('click',async e=>{
 });
 
 if(sb){sb.auth.getSession().then(async({data})=>{if(data.session){user=data.session.user;await loadProfile();showApp()}else setAuth('login')});sb.auth.onAuthStateChange(async(event,session)=>{if(event==='PASSWORD_RECOVERY'){setAuth('newPassword')}else if(session&&!user){user=session.user;await loadProfile();showApp()}else if(!session){user=null;profile=null;setAuth('login')}})}else{setAuth('login');authStatus('Дизайн готов. Для настоящей регистрации подключи Supabase — ключи не добавляются в публичный код.',true)}
-setTimeout(()=>{$('splash').style.display='none'},3400);
+setTimeout(()=>{
+ $('splash').style.display='none';
+ if($('app').classList.contains('hidden')&&$('auth').classList.contains('hidden')){
+  setAuth('login');
+  authStatus('Загрузка заняла больше времени обычного. Можно войти ещё раз или обновить страницу.',true);
+ }
+},6500);
 })();

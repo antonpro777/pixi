@@ -28,8 +28,7 @@ create index if not exists posts_created_at_idx on public.posts(created_at desc)
 create index if not exists posts_author_id_idx on public.posts(author_id, created_at desc);
 alter table public.posts enable row level security;
 create policy "Public posts are readable" on public.posts for select to anon, authenticated using (
-  visibility = 'public' or author_id = (select auth.uid()) or
-  (visibility = 'followers' and exists(select 1 from public.follows f where f.follower_id=(select auth.uid()) and f.following_id=author_id))
+  visibility = 'public' or author_id = (select auth.uid())
 );
 create policy "Users publish as themselves" on public.posts for insert to authenticated with check ((select auth.uid()) = author_id);
 create policy "Users edit their own posts" on public.posts for update to authenticated using ((select auth.uid()) = author_id) with check ((select auth.uid()) = author_id);

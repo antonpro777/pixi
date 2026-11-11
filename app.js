@@ -127,9 +127,9 @@ async function loadFeed(){
  }).join('');
 }
 async function loadVideos(){
- if(!sb)return;const {data,error}=await sb.from('posts').select('id,caption,media_url,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
+ if(!sb)return;const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
- $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video controls playsinline muted preload="metadata" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'" style="width:100%;max-height:70vh;border-radius:16px;background:#000"></video>'+(p.music_url?'<audio controls data-video-audio="1" src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p></article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
+ $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video controls playsinline muted preload="metadata" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'" style="width:100%;max-height:70vh;border-radius:16px;background:#000"></video>'+(p.music_url?'<audio controls data-video-audio="1" src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" data-delete-post="'+p.id+'">Удалить публикацию</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
 }
 async function loadStories(){
@@ -154,6 +154,60 @@ function createStoryPicker(){
 
 
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
+let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='';
+
+function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';$('callAvatar').textContent=(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase()}
+function updateCallTimer(){if(!callStartedAt)return;const n=Math.floor((Date.now()-callStartedAt)/1000);$('callTimer').textContent=String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
+async function ensureCallChannel(cid=activeConversation){
+ if(!cid)throw new Error('Сначала открой переписку.');
+ if(activeCallChannel&&callChannelConversation===cid)return activeCallChannel;
+ if(activeCallChannel)await sb.removeChannel(activeCallChannel);
+ callChannelConversation=cid;
+ const ch=sb.channel('pixy-call-'+cid,{config:{private:true}}).on('broadcast',{event:'signal'},m=>handleCallSignal(m?.payload||m));activeCallChannel=ch;
+ await new Promise((resolve,reject)=>{let done=false;const timeout=setTimeout(()=>{if(!done){done=true;reject(new Error('Не удалось подключить канал звонка.'))}},10000);ch.subscribe(status=>{if(status==='SUBSCRIBED'&&!done){done=true;clearTimeout(timeout);resolve()}else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!done){done=true;clearTimeout(timeout);reject(new Error('Realtime отклонил канал звонка.'))}})});
+ return ch;
+}
+async function sendCallSignal(type,extra={}){if(!activeCallChannel)await ensureCallChannel();return activeCallChannel.send({type:'broadcast',event:'signal',payload:{type,from:user.id,name:profile?.display_name||profile?.username||'Пользователь',...extra}})}
+async function createCallPeer(){
+ if(callPeer)return callPeer;
+ const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});callPeer=pc;
+ pc.onicecandidate=e=>{if(e.candidate)sendCallSignal('ice',{candidate:e.candidate}).catch(console.warn)};
+ pc.ontrack=e=>{const a=$('callRemoteAudio');if(!a.srcObject)a.srcObject=e.streams?.[0]||new MediaStream([e.track]);a.play().catch(()=>{$('callStatus').textContent='Нажми «Включить громкую связь» для звука.'})};
+ pc.onconnectionstatechange=()=>{if(callPeer!==pc)return;if(pc.connectionState==='connected'){ $('callStatus').textContent='На связи';if(!callStartedAt){callStartedAt=Date.now();callTimer=setInterval(updateCallTimer,1000);updateCallTimer()} }else if(pc.connectionState==='connecting')$('callStatus').textContent='Соединяем…';else if(pc.connectionState==='failed')$('callStatus').textContent='Сеть не пропускает прямое соединение. Может потребоваться TURN-сервер.';else if(pc.connectionState==='disconnected')$('callStatus').textContent='Связь прервана…'};
+ callLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+ callLocalStream.getAudioTracks().forEach(t=>{t.enabled=!callMuted;pc.addTrack(t,callLocalStream)});return pc;
+}
+async function startVoiceCall(){
+ if(!activeConversation||!activeChatUser)return toast('Открой чат с человеком, которому хочешь позвонить.');
+ if(callDirection||callPeer)return toast('Звонок уже идёт.');
+ if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return toast('Браузер не поддерживает интернет-звонки.');
+ callDirection='outgoing';callPeerName=$('chatTitle').textContent||'Контакт';callUi(true,'Вызываем…');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
+ try{await ensureCallChannel(activeConversation);await sendCallSignal('ring');const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
+ catch(err){console.error('PIXY call start:',err);toast('Не удалось начать звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
+}
+async function acceptVoiceCall(){
+ if(!callPendingOffer){$('callAcceptBtn').dataset.acceptRequested='1';$('callStatus').textContent='Ожидаем сигнал звонка…';return}
+ try{$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');const pc=await createCallPeer();await pc.setRemoteDescription(new RTCSessionDescription(callPendingOffer));for(const c of callPendingIce.splice(0)){try{await pc.addIceCandidate(new RTCIceCandidate(c))}catch(err){console.warn(err)}}const answer=await pc.createAnswer();await pc.setLocalDescription(answer);await sendCallSignal('answer',{description:pc.localDescription});$('callStatus').textContent='Соединяем…'}
+ catch(err){console.error('PIXY accept:',err);toast('Не удалось принять звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
+}
+async function handleCallSignal(s){
+ if(!s||s.from===user?.id)return;
+ if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';callPeerName=s.name||'Контакт';callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden')}
+ else if(s.type==='offer'){callPendingOffer=s.description;if(!callDirection){callDirection='incoming';callPeerName=s.name||'Контакт';callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden')}if($('callAcceptBtn').dataset.acceptRequested==='1')await acceptVoiceCall()}
+ else if(s.type==='answer'&&callPeer){try{await callPeer.setRemoteDescription(new RTCSessionDescription(s.description));for(const c of callPendingIce.splice(0)){await callPeer.addIceCandidate(new RTCIceCandidate(c))}}catch(err){console.warn(err)}}
+ else if(s.type==='ice'){if(callPeer?.remoteDescription){try{await callPeer.addIceCandidate(new RTCIceCandidate(s.candidate))}catch(err){console.warn(err)}}else callPendingIce.push(s.candidate)}
+ else if(['hangup','decline','busy'].includes(s.type)){await endVoiceCall(false);toast(s.type==='busy'?'Собеседник уже разговаривает.':s.type==='decline'?'Вызов отклонён.':'Звонок завершён.')}
+}
+async function endVoiceCall(notify=true){
+ if(notify&&activeCallChannel){try{await sendCallSignal('hangup')}catch(_){}}
+ if(callTimer){clearInterval(callTimer);callTimer=null}if(callPeer){try{callPeer.close()}catch(_){}callPeer=null}if(callLocalStream){callLocalStream.getTracks().forEach(t=>t.stop());callLocalStream=null}
+ const a=$('callRemoteAudio');a.pause();a.srcObject=null;a.muted=false;callPendingOffer=null;callPendingIce=[];callStartedAt=0;callMuted=false;callSpeakerOn=true;callDirection='';
+ $('callTimer').textContent='00:00';$('callMuteBtn').textContent='Выключить микрофон';$('callSpeakerBtn').textContent='Выключить громкую связь';$('callAcceptBtn').dataset.acceptRequested='0';callUi(false,'');
+}
+$('chatCallBtn').onclick=startVoiceCall;$('callAcceptBtn').onclick=acceptVoiceCall;$('callDeclineBtn').onclick=()=>endVoiceCall(true);$('callHangupBtn').onclick=()=>endVoiceCall(true);
+$('callMuteBtn').onclick=()=>{callMuted=!callMuted;callLocalStream?.getAudioTracks().forEach(t=>t.enabled=!callMuted);$('callMuteBtn').textContent=callMuted?'Включить микрофон':'Выключить микрофон'};
+$('callSpeakerBtn').onclick=()=>{callSpeakerOn=!callSpeakerOn;$('callRemoteAudio').muted=!callSpeakerOn;$('callSpeakerBtn').textContent=callSpeakerOn?'Выключить громкую связь':'Включить громкую связь'};
+
 async function loadChatList(){
  if(!sb||!user)return;
  const {data,error}=await sb.rpc('list_my_direct_chats');
@@ -173,9 +227,10 @@ async function openChat(cid,uid,name){
  if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}
  await refreshChatMessages(cid);
  activeChatChannel=sb.channel('pixy-chat-'+cid).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+cid},payload=>{if(activeConversation===cid)refreshChatMessages(cid)}).subscribe();
+ try{await ensureCallChannel(cid)}catch(err){console.warn('PIXY call channel:',err)}
 }
 $('chatList').addEventListener('click',e=>{const b=e.target.closest('[data-chat]');if(b)openChat(b.dataset.chat,b.dataset.chatUser,b.dataset.chatName)});
-$('chatBackBtn').onclick=async()=>{if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}activeConversation=null;activeChatUser=null;$('chatConversationPanel').classList.add('hidden');$('chatPeoplePanel').classList.remove('hidden');};
+$('chatBackBtn').onclick=async()=>{if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}if(activeCallChannel&&!callDirection){await sb.removeChannel(activeCallChannel);activeCallChannel=null;callChannelConversation=null}activeConversation=null;activeChatUser=null;$('chatConversationPanel').classList.add('hidden');$('chatPeoplePanel').classList.remove('hidden');};
 $('chatSendForm').onsubmit=async e=>{
  e.preventDefault();const body=$('chatMessageInput').value.trim();if(!activeConversation||!body)return;
  const {error}=await sb.from('messages').insert({conversation_id:activeConversation,sender_id:user.id,body});
@@ -305,13 +360,23 @@ function stopCamera(){
  if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null}
  const p=$('cameraPreview');if(p)p.srcObject=null;
 }
+
+function setupCameraZoom(){
+ const input=$('cameraZoom'),label=$('cameraZoomValue'),track=cameraStream?.getVideoTracks?.()[0];if(!input||!track)return;
+ try{const z=track.getCapabilities?.().zoom;if(!z){input.disabled=true;input.min='1';input.max='1';input.value='1';if(label)label.textContent='1×';input.title='Зум не поддерживается камерой';return}
+ input.disabled=false;input.min=String(z.min??1);input.max=String(Math.min(z.max??4,8));input.step=String(z.step??0.1);
+ const v=track.getSettings?.().zoom??z.min??1;input.value=String(Math.min(Number(input.max),Math.max(Number(input.min),v)));if(label)label.textContent=Number(input.value).toFixed(1)+'×';
+ }catch(err){input.disabled=true;console.warn('PIXY zoom:',err)}
+}
+$('cameraZoom')?.addEventListener('input',async e=>{const track=cameraStream?.getVideoTracks?.()[0],v=Number(e.target.value);if(!track)return;$('cameraZoomValue').textContent=v.toFixed(1)+'×';try{await track.applyConstraints({advanced:[{zoom:v}]})}catch(err){console.warn(err);toast('Зум не поддерживается этой камерой.')}});
+
 async function startCamera(){
  stopCamera();
  try{
   cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});
   const v=$('cameraPreview');v.srcObject=cameraStream;
   await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});
-  await v.play();$('cameraHint').textContent='Камера включена';
+  await v.play();setupCameraZoom();$('cameraHint').textContent='Камера включена';
  }catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}
 }
 function setCaptureMode(m){
@@ -360,10 +425,12 @@ $('postForm').addEventListener('submit',async e=>{
  button.disabled=true;
  const oldText=button.textContent;
  button.textContent='Публикую…';
+ const status=$('publishStatus');if(status){status.textContent='Подготавливаю публикацию…';status.classList.remove('hidden')}
  try{
   const uploaded=[];
   for(let i=0;i<files.length;i++){
    const file=files[i];
+   if(status)status.textContent='Загружаю файл '+(i+1)+' из '+files.length+'…';
    const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';
    const path=user.id+'/posts/'+crypto.randomUUID()+'.'+ext;
    const {error:uploadError}=await sb.storage.from('pixy-media').upload(path,file,{contentType:file.type||'application/octet-stream'});
@@ -379,13 +446,15 @@ $('postForm').addEventListener('submit',async e=>{
    caption:$('postCaption').value.trim(),
    media_url:uploaded[0].url,
    media_type:isVideo?'video':'image',
-   media_items:isVideo?null:uploaded,
+   media_items:isVideo?[]:uploaded,
    music_url:track&&!isRecordedVideo?track.audio_url:null,
    music_title:track?.title||null,
    visibility:'public'
   };
+  if(status)status.textContent='Сохраняю публикацию…';
   const {error:insertError}=await sb.from('posts').insert(payload);
   if(insertError)throw insertError;
+  if(status)status.textContent='Опубликовано!';
   stopCamera();
   $('composerModal').classList.add('hidden');
   $('soundPicker').classList.add('hidden');
@@ -397,6 +466,7 @@ $('postForm').addEventListener('submit',async e=>{
   await Promise.all([loadFeed(),loadProfilePosts()]);
  }catch(err){
   console.error('PIXY publish error:',err);
+  if(status)status.textContent='Ошибка публикации: '+(err?.message||'неизвестная ошибка');
   toast('Не удалось опубликовать: '+(err?.message||'ошибка загрузки'));
  }finally{
   button.disabled=false;
@@ -569,7 +639,24 @@ $('searchResults').addEventListener('click',async e=>{
  toast('Подарок отправлен! Остаток: '+data+' pts');loadWallet();
 });
 
-async function loadProfilePosts(){if(!sb||!user)return;const {data,error}=await sb.from('posts').select('id,media_url,media_type').eq('author_id',user.id).order('created_at',{ascending:false});if(error)return; $('postCount').textContent=data.length;$('profileGrid').innerHTML=data.length?data.map(p=>p.media_type==='video'?'<video src="'+safe(p.media_url)+'" controls></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>'}
+
+function storagePathFromPublicUrl(url){try{const marker='/storage/v1/object/public/pixy-media/';const p=new URL(url).pathname;const i=p.indexOf(marker);return i<0?null:decodeURIComponent(p.slice(i+marker.length))}catch(_){return null}}
+async function deleteOwnPost(id){
+ if(!sb||!user||!confirm('Удалить эту публикацию?'))return;
+ try{
+  const {data:p,error:r}=await sb.from('posts').select('id,author_id,media_url,media_items').eq('id',id).eq('author_id',user.id).maybeSingle();
+  if(r)throw r;if(!p)throw new Error('Публикация не найдена или уже удалена.');
+  const urls=[p.media_url,...(Array.isArray(p.media_items)?p.media_items.map(x=>x?.url).filter(Boolean):[])];
+  const paths=[...new Set(urls.map(storagePathFromPublicUrl).filter(Boolean))];
+  const {data:d,error:e}=await sb.from('posts').delete().eq('id',id).eq('author_id',user.id).select('id').maybeSingle();
+  if(e)throw e;if(!d)throw new Error('Удаление не подтверждено базой данных.');
+  let warn='';if(paths.length){const {error}=await sb.storage.from('pixy-media').remove(paths);if(error){console.warn(error);warn=' Файл в хранилище не удалось очистить.'}}
+  toast('Публикация удалена.'+warn);await Promise.all([loadFeed(),loadProfilePosts(),loadVideos()]);
+ }catch(err){console.error('PIXY delete:',err);toast('Не удалось удалить: '+(err?.message||'ошибка'))}
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-delete-post]');if(b){e.preventDefault();e.stopPropagation();deleteOwnPost(b.dataset.deletePost)}});
+
+async function loadProfilePosts(){if(!sb||!user)return;const {data,error}=await sb.from('posts').select('id,media_url,media_type').eq('author_id',user.id).order('created_at',{ascending:false});if(error){console.warn('PIXY profile posts:',error);return} $('postCount').textContent=data.length;$('profileGrid').innerHTML=data.length?data.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<video src="'+safe(p.media_url)+'" controls playsinline></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" data-delete-post="'+p.id+'">Удалить</button></div>').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>'}
 
 const bgColors={aurora:['#38255d','#bb85f3'],sunset:['#64364f','#f3a17c'],ocean:['#173b55','#71c6dc'],candy:['#683b6c','#ee91ce'],forest:['#1d5146','#84d2ad'],cosmic:['#20214f','#9d9bff'],peach:['#794b3f','#ffc49d'],lavender:['#453d70','#c6b3ff'],neon:['#222044','#ff75b7'],silver:['#424252','#c9c9df']};
 const giftEmoji={moon:'🌙',heart:'💜',planet:'🪐',teddy:'🧸',bloom:'🌸',music:'🎧',butterfly:'🦋',crystal:'💎',cat:'🐱',ribbon:'🎀',rocket:'🚀',crown:'👑',unicorn:'🦄',trophy:'🏆',stardust:'✨'};

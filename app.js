@@ -43,15 +43,9 @@ function createStoryPicker(){
 let activeConversation=null,activeChatUser=null,voiceRecorder=null,voiceChunks=[];
 async function loadChatList(){
  if(!sb||!user)return;
- const {data:members,error}=await sb.from('conversation_members').select('conversation_id').eq('user_id',user.id);
+ const {data,error}=await sb.rpc('list_my_direct_chats');
  if(error){$('chatList').textContent=error.message;return}
- const ids=(members||[]).map(x=>x.conversation_id);if(!ids.length){$('chatList').innerHTML='<p class="hint">Пока нет диалогов. Найди пользователя выше.</p>';return}
- const {data:others,error:otherError}=await sb.from('conversation_members').select('conversation_id,user_id').in('conversation_id',ids).neq('user_id',user.id);
- if(otherError){$('chatList').textContent=otherError.message;return}
- const userIds=[...new Set((others||[]).map(x=>x.user_id))];
- const {data:people}=await sb.from('profiles').select('id,username,display_name').in('id',userIds);
- const map=Object.fromEntries((people||[]).map(p=>[p.id,p]));
- $('chatList').innerHTML=(others||[]).map(x=>{const p=map[x.user_id]||{};return '<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.user_id+'" data-chat-name="'+safe(p.username||'user')+'" style="display:block;width:100%;padding:12px;text-align:left;border:0;border-radius:12px;background:transparent;color:inherit">@'+safe(p.username||'user')+'</button>'}).join('');
+ $('chatList').innerHTML=(data||[]).map(x=>'<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.other_user_id+'" data-chat-name="'+safe(x.username||'user')+'" style="display:block;width:100%;padding:12px;text-align:left;border:0;border-radius:12px;background:transparent;color:inherit">@'+safe(x.username||'user')+'</button>').join('')||'<p class="hint">Пока нет диалогов. Найди пользователя выше.</p>';
 }
 async function openChat(cid,uid,name){
  activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;
@@ -71,7 +65,7 @@ $('chatSearchResults').addEventListener('click',async e=>{
  const b=e.target.closest('[data-start-chat]');if(!b)return;
  const {data,error}=await sb.rpc('create_direct_conversation',{other_user:b.dataset.startChat});
  if(error)return toast('Не удалось открыть чат: '+error.message);
- $('chatSearch').value='';$('chatSearchResults').innerHTML='';await loadChatList();const {data:members}=await sb.from('conversation_members').select('user_id').eq('conversation_id',data).neq('user_id',user.id);await openChat(data,members?.[0]?.user_id,b.dataset.startName);
+ $('chatSearch').value='';$('chatSearchResults').innerHTML='';await loadChatList();await openChat(data,b.dataset.startChat,b.dataset.startName);
 });
 $('chatSendForm').onsubmit=async e=>{
  e.preventDefault();const body=$('chatMessageInput').value.trim();if(!activeConversation||!body)return;

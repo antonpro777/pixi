@@ -90,7 +90,14 @@ $('verifyForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)re
 $('resendCode').onclick=async()=>{if(!sb||!pendingEmail)return;const result=verifyPurpose==='recovery'?await sb.auth.resetPasswordForEmail(pendingEmail):await sb.auth.resend({type:'signup',email:pendingEmail});authStatus(result.error?result.error.message:'Новый код отправлен.',!!result.error)};
 $('resetForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;pendingEmail=$('resetEmail').value.trim();verifyPurpose='recovery';const {error}=await sb.auth.resetPasswordForEmail(pendingEmail);if(error)return authStatus(error.message,true);setAuth('verify');authStatus('Код восстановления отправлен на '+pendingEmail)});
 $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;const {error}=await sb.auth.updateUser({password:$('newPassword').value});if(error)return authStatus(error.message,true);toast('Пароль обновлён');setAuth('login')});
-$('signOut').onclick=async()=>{if(sb)await sb.auth.signOut();user=null;profile=null;setAuth('login')};
+async function signOutOfPixy(){
+ try{if(sb){const {error}=await sb.auth.signOut();if(error)throw error}
+  user=null;profile=null;activeConversation=null;activeChatUser=null;
+  setAuth('login');toast('Ты вышел из аккаунта PIXY.');
+ }catch(error){console.error('PIXY sign out:',error);toast('Не удалось выйти: '+(error?.message||'ошибка'))}
+}
+$('signOut').onclick=signOutOfPixy;
+$('signOutProfile')?.addEventListener('click',signOutOfPixy);
 function withTimeout(promise,ms,message){
  let timer;
  return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms)})]).finally(()=>clearTimeout(timer));
@@ -129,7 +136,7 @@ async function loadFeed(){
 async function loadVideos(){
  if(!sb)return;const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
- $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video controls playsinline muted preload="metadata" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'" style="width:100%;max-height:70vh;border-radius:16px;background:#000"></video>'+(p.music_url?'<audio controls data-video-audio="1" src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" data-delete-post="'+p.id+'">Удалить публикацию</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
+ $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video controls playsinline muted preload="metadata" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'" style="width:100%;max-height:70vh;border-radius:16px;background:#000"></video>'+(p.music_url?'<audio controls data-video-audio="1" src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
 }
 async function loadStories(){
@@ -373,11 +380,21 @@ function setupCameraZoom(){
   $('cameraPreview').style.transform=cameraZoomHardware?'':'scale(1)';
  }catch(err){cameraZoomHardware=false;input.disabled=false;input.min='1';input.max='4';input.step='0.1';input.value='1';console.warn('PIXY zoom:',err)}
 }
-$('cameraZoom')?.addEventListener('input',async e=>{
- const track=cameraStream?.getVideoTracks?.()[0],v=Number(e.target.value);if(!track)return;
- $('cameraZoomValue').textContent=v.toFixed(1)+'×';
+async function applyCameraZoom(value){
+ const input=$('cameraZoom'),track=cameraStream?.getVideoTracks?.()[0];if(!input)return;
+ const min=Number(input.min)||1,max=Number(input.max)||4,v=Math.min(max,Math.max(min,Number(value)||1));
+ input.value=String(v);$('cameraZoomValue').textContent=v.toFixed(1)+'×';
+ if(!track)return;
  if(cameraZoomHardware){try{await track.applyConstraints({advanced:[{zoom:v}]})}catch(err){console.warn(err);toast('Не удалось изменить аппаратный зум.')}}else $('cameraPreview').style.transform='scale('+v+')';
-});
+}
+$('cameraZoom')?.addEventListener('input',e=>applyCameraZoom(e.target.value));
+let pinchStartDistance=0,pinchStartZoom=1,lastPinchUpdate=0;
+const cameraGesture=$('cameraStage');
+function touchDistance(touches){const dx=touches[0].clientX-touches[1].clientX,dy=touches[0].clientY-touches[1].clientY;return Math.hypot(dx,dy)}
+cameraGesture?.addEventListener('touchstart',e=>{if(e.touches.length===2){pinchStartDistance=touchDistance(e.touches);pinchStartZoom=Number($('cameraZoom')?.value)||1;lastPinchUpdate=0}},{passive:true});
+cameraGesture?.addEventListener('touchmove',e=>{if(e.touches.length!==2||!pinchStartDistance)return;e.preventDefault();const distance=touchDistance(e.touches),factor=distance/pinchStartDistance;if(Math.abs(distance-pinchStartDistance)<2)return;const next=pinchStartZoom*factor;const now=performance.now();if(now-lastPinchUpdate>12){lastPinchUpdate=now;applyCameraZoom(next)}},{passive:false});
+cameraGesture?.addEventListener('touchend',e=>{if(e.touches.length<2)pinchStartDistance=0},{passive:true});
+cameraGesture?.addEventListener('touchcancel',()=>{pinchStartDistance=0},{passive:true});
 function makeZoomedVideoTrack(){
  const original=cameraStream?.getVideoTracks?.()[0];if(!original||cameraZoomHardware)return original;
  const video=$('cameraPreview');if(!video.videoWidth||!video.videoHeight)return original;
@@ -683,7 +700,7 @@ async function deleteOwnPost(id){
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-delete-post]');if(b){e.preventDefault();e.stopPropagation();deleteOwnPost(b.dataset.deletePost)}});
 
-async function loadProfilePosts(){if(!sb||!user)return;const {data,error}=await sb.from('posts').select('id,media_url,media_type').eq('author_id',user.id).order('created_at',{ascending:false});if(error){console.warn('PIXY profile posts:',error);return} $('postCount').textContent=data.length;$('profileGrid').innerHTML=data.length?data.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<video src="'+safe(p.media_url)+'" controls playsinline></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" data-delete-post="'+p.id+'">Удалить</button></div>').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>'}
+async function loadProfilePosts(){if(!sb||!user)return;const {data,error}=await sb.from('posts').select('id,media_url,media_type').eq('author_id',user.id).order('created_at',{ascending:false});if(error){console.warn('PIXY profile posts:',error);return} $('postCount').textContent=data.length;$('profileGrid').innerHTML=data.length?data.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<video src="'+safe(p.media_url)+'" controls playsinline></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>'}
 
 const bgColors={aurora:['#38255d','#bb85f3'],sunset:['#64364f','#f3a17c'],ocean:['#173b55','#71c6dc'],candy:['#683b6c','#ee91ce'],forest:['#1d5146','#84d2ad'],cosmic:['#20214f','#9d9bff'],peach:['#794b3f','#ffc49d'],lavender:['#453d70','#c6b3ff'],neon:['#222044','#ff75b7'],silver:['#424252','#c9c9df']};
 const giftEmoji={moon:'🌙',heart:'💜',planet:'🪐',teddy:'🧸',bloom:'🌸',music:'🎧',butterfly:'🦋',crystal:'💎',cat:'🐱',ribbon:'🎀',rocket:'🚀',crown:'👑',unicorn:'🦄',trophy:'🏆',stardust:'✨'};

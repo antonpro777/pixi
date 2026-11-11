@@ -273,3 +273,35 @@
 .profile-signout-btn{border-color:#ff9aac55!important;color:#ffc3d0!important}
 .mini-user>button#signOut{width:34px;height:34px;display:grid;place-items:center;border:1px solid #ffffff22;border-radius:10px;background:#ffffff0b;font-size:16px;color:#e7d9ff}
 @media(max-width:760px){.camera-zoom{bottom:calc(156px + env(safe-area-inset-bottom));width:min(190px,55vw)}}
+
+/* Clickable profile, follow and follower-list UI */
+.post-author-link{display:flex;align-items:center;gap:9px;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.post-user.post-author-link{display:grid;gap:4px}
+.post-author-link:hover strong,.search-person-main:hover b{color:#cbb5ff}
+.profile-stats>button{display:grid;gap:5px;justify-items:center;padding:0;border:0;background:transparent;color:inherit;cursor:pointer}
+.profile-stats>button:hover b{color:#c7a9ff}
+.search-person{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--line)}
+.search-person-main{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.search-person-main>span:last-child{display:grid;gap:4px;min-width:0}
+.search-person-main b{font-size:12px}
+.search-person-main small{font-size:10px;color:var(--muted)}
+.follow-action{flex-shrink:0;padding:8px 12px;border:1px solid #a889ef66;border-radius:10px;background:linear-gradient(120deg,#a98af1,#885ce2);color:white;font-size:10px;font-weight:800;cursor:pointer}
+.follow-action.following{background:#ffffff0c;color:#d4c6ef;border-color:#ffffff26}
+.follow-action:disabled{opacity:.5}
+.public-profile-card,.follow-list-card{width:min(94vw,620px);max-height:88vh;overflow:auto}
+.public-profile-head{display:flex;align-items:center;gap:14px;padding:12px 0 16px}
+.public-profile-head>div{flex:1;min-width:0}
+.public-profile-head h2{margin:0 0 5px;font-size:20px}
+.public-profile-head small{color:var(--muted);font-size:11px}
+.public-profile-avatar,.profile-list-avatar{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(145deg,#a98af1,#dc83c6);background-size:cover;color:#fff;font-size:20px;font-weight:800}
+.public-profile-bio{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.5}
+.public-profile-stats{display:flex;justify-content:flex-start;gap:34px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.public-profile-card h3{margin:17px 0 10px;font-size:14px}
+.public-profile-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.public-profile-grid .my-post{aspect-ratio:1;overflow:hidden;border-radius:10px;background:#111}
+.public-profile-grid img,.public-profile-grid video{width:100%;height:100%;object-fit:cover}
+.follow-list-card h2{margin:4px 0 18px;font-size:19px}
+.follow-list-person{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.follow-list-person .search-person-main{flex:1}
+.profile-view-loading{padding:32px 12px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:520px){.public-profile-head{gap:10px}.public-profile-head h2{font-size:17px}.follow-action{padding:8px 9px}.public-profile-grid{gap:4px}}

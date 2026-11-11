@@ -98,7 +98,7 @@ async function signOutOfPixy(){
 }
 $('signOut').onclick=signOutOfPixy;
 $('signOutProfile')?.addEventListener('click',signOutOfPixy);
-$('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu'),open=menu.classList.toggle('hidden')===false;$('profileMoreBtn').setAttribute('aria-expanded',String(open));});
+$('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu');menu.classList.toggle('hidden');const open=!menu.classList.contains('hidden');$('profileMoreBtn').setAttribute('aria-expanded',String(open));});
 $('refreshNotifications')?.addEventListener('click',loadNotifications);
 document.addEventListener('click',e=>{if(!e.target.closest('.profile-actions')){$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false')}});
 
@@ -131,7 +131,7 @@ async function loadNotifications(){
   if(ids.length){
    const [{data:comments},{data:reactions}]=await Promise.all([
     sb.from('comments').select('id,post_id,author_id,body,created_at,profiles(username)').in('post_id',ids).neq('author_id',user.id).order('created_at',{ascending:false}).limit(25),
-    sb.from('reactions').select('id,post_id,user_id,reaction,created_at,profiles(username)').in('post_id',ids).neq('user_id',user.id).order('created_at',{ascending:false}).limit(25)
+    sb.from('reactions').select('post_id,user_id,reaction,created_at,profiles(username)').in('post_id',ids).neq('user_id',user.id).order('created_at',{ascending:false}).limit(25)
    ]);
    for(const x of comments||[])items.push({type:'comment',name:x.profiles?.username||'Пользователь',text:'оставил комментарий: '+(x.body||''),date:x.created_at,action:'profile',id:x.id});
    for(const x of reactions||[])items.push({type:'like',name:x.profiles?.username||'Пользователь',text:x.reaction==='like'?'поставил лайк твоей публикации':'оставил реакцию '+x.reaction,date:x.created_at,action:'profile',id:x.id});

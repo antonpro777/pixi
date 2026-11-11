@@ -231,7 +231,26 @@ $('postForm').onsubmit=async e=>{e.preventDefault();if(!sb||!user)return toast('
 $('feed').addEventListener('click',e=>{const b=e.target.closest('[data-carousel-next],[data-carousel-prev]');if(!b)return;const box=b.closest('[data-carousel]');let items=[];try{items=JSON.parse(box.dataset.items||'[]')}catch(_){}if(!items.length)return;let i=Number(box.dataset.index||0);i=(i+(b.hasAttribute('data-carousel-next')?1:-1)+items.length)%items.length;box.dataset.index=i;box.querySelector('[data-carousel-image]').src=items[i].url;box.querySelector('[data-carousel-count]').textContent=(i+1)+' / '+items.length});
 function bindVideoMusic(root){root.querySelectorAll('.post-video-wrap').forEach(w=>{const v=w.querySelector('video[data-video-music]'),a=w.querySelector('audio[data-video-audio]');if(!v||!a||v.dataset.bound)return;v.dataset.bound='1';v.onplay=()=>{a.currentTime=v.currentTime;a.play().catch(()=>{})};v.onpause=()=>a.pause();v.onseeking=()=>{a.currentTime=v.currentTime};v.onended=()=>{a.pause();a.currentTime=0}})}
 new MutationObserver(()=>bindVideoMusic(document)).observe(document.body,{childList:true,subtree:true});bindVideoMusic(document);
-$('musicUploadBtn').onclick=async()=>{if(profile?.username!=='anpro777')return toast('Нет доступа.');const f=$('musicTrackFile').files?.[0],title=$('musicTrackTitle').value.trim();if(!f||!title)return toast('Укажи название и выбери аудио.');if(!f.type.startsWith('audio/')||f.size>50*1024*1024)return toast('Нужен аудиофайл до 50 МБ.');const b=$('musicUploadBtn');b.disabled=true;try{const path=user.id+'/music/'+crypto.randomUUID()+'.'+f.name.split('.').pop().toLowerCase(),{error:ue}=await sb.storage.from('pixy-media').upload(path,f,{contentType:f.type});if(ue)throw ue;const url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl;const tmp=URL.createObjectURL(f),duration=await new Promise(r=>{const a=new Audio();a.onloadedmetadata=()=>{URL.revokeObjectURL(tmp);r(Math.round(a.duration))};a.onerror=()=>r(null);a.src=tmp});const {error}=await sb.from('music_tracks').insert({title,artist:'PIXY Music',audio_url:url,storage_path:path,duration_seconds:duration,created_by:user.id});if(error)throw error;$('musicTrackTitle').value='';$('musicTrackFile').value='';toast('Трек добавлен в библиотеку.');loadMusicLibrary()}catch(err){toast(err.message||'Не удалось загрузить')}finally{b.disabled=false}};
+$('musicUploadBtn').onclick=async()=>{
+ if(profile?.username!=='anpro777')return toast('Нет доступа.');
+ const files=Array.from($('musicTrackFile').files||[]),customTitle=$('musicTrackTitle').value.trim();
+ if(!files.length)return toast('Выбери один или несколько аудиофайлов.');
+ if(files.some(f=>!f.type.startsWith('audio/')||f.size>50*1024*1024))return toast('Каждый файл должен быть аудио до 50 МБ.');
+ const b=$('musicUploadBtn');b.disabled=true;b.textContent='Загружаю '+files.length+' трек(ов)…';
+ try{
+  for(const f of files){
+   const title=(files.length===1&&customTitle?customTitle:f.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').trim()).slice(0,80);
+   const path=user.id+'/music/'+crypto.randomUUID()+'.'+f.name.split('.').pop().toLowerCase();
+   const {error:upErr}=await sb.storage.from('pixy-media').upload(path,f,{contentType:f.type});if(upErr)throw upErr;
+   const url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl,tmp=URL.createObjectURL(f);
+   const duration=await new Promise(r=>{const a=new Audio();a.onloadedmetadata=()=>{URL.revokeObjectURL(tmp);r(Math.round(a.duration))};a.onerror=()=>{URL.revokeObjectURL(tmp);r(null)};a.src=tmp});
+   const {error}=await sb.from('music_tracks').insert({title,artist:'PIXY Music',audio_url:url,storage_path:path,duration_seconds:duration,created_by:user.id});if(error)throw error;
+  }
+  $('musicTrackTitle').value='';$('musicTrackFile').value='';toast('Добавлено треков: '+files.length+'.');loadMusicLibrary();
+ }catch(err){toast(err.message||'Не удалось загрузить')}
+ finally{b.disabled=false;b.textContent='Добавить музыку'}
+};
+
 $('editProfile').onclick=()=>{if(!user)return toast('Войди, чтобы редактировать профиль.');$('editName').value=profile?.display_name||'';$('editBio').value=profile?.bio||'';$('profileModal').classList.remove('hidden')};
 $('profileForm').onsubmit=async e=>{e.preventDefault();if(!sb||!user)return;let avatar_url=profile?.avatar_url||null;const file=$('avatarFile').files[0];if(file){if(!['image/jpeg','image/png','image/webp'].includes(file.type))return toast('Аватар: только JPG, PNG или WebP.');if(file.size>5*1024*1024)return toast('Аватар должен быть не больше 5 МБ.');const path=user.id+'/avatar-'+Date.now()+'.'+file.name.split('.').pop();const {error}=await sb.storage.from('pixy-media').upload(path,file,{upsert:true,contentType:file.type});if(error)return toast(error.message);avatar_url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl}const {data,error}=await sb.from('profiles').upsert({id:user.id,display_name:$('editName').value.trim(),bio:$('editBio').value.trim(),avatar_url}).select().single();if(error)return toast(error.message);profile=data;showApp();$('profileModal').classList.add('hidden');toast('Профиль сохранён')};
 $('editCover').onclick=()=>nav('shop');

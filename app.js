@@ -399,9 +399,11 @@ async function loadMusicLibrary(){
  availableMusic=data||[];
  const s=$('postMusic'),old=selectedMusicId;s.innerHTML='<option value="">Без музыки</option>'+availableMusic.map(t=>'<option value="'+t.id+'">'+safe(t.title)+' — '+safe(t.artist)+'</option>').join('');
  if(availableMusic.some(t=>t.id===old))s.value=old;else{selectedMusicId='';s.value=''}
+ const chosen=availableMusic.find(t=>t.id===selectedMusicId);$('cameraSoundLabel').textContent=chosen?chosen.title:'Добавить звук';$('cameraSoundPill').classList.toggle('has-track',!!chosen);
  renderSoundTracks();
 }
 function renderSoundTracks(){
+ $('soundUseBtn').disabled=!pickerMusicId;
  const list=$('soundTrackList');
  if(!availableMusic.length){list.innerHTML='<p class="sound-empty">Пока нет доступных треков.</p>';return}
  list.innerHTML=availableMusic.map(t=>'<button type="button" class="sound-track '+(t.id===pickerMusicId?'selected':'')+'" data-pick-track="'+safe(t.id)+'"><span class="sound-track-icon">♫</span><span><b>'+safe(t.title)+'</b><small>'+safe(t.artist||'PIXY Music')+'</small></span><i>'+(t.id===pickerMusicId?'✓':'▶')+'</i></button>').join('');

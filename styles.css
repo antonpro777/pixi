@@ -29,3 +29,5 @@
  .auth-box{width:min(420px,100%)}
  .mobile-brand{margin-bottom:42px}
 }
+
+@media(max-width:760px){.nav{gap:2px}.nav-item{flex:1;min-width:0;padding-left:2px;padding-right:2px}.nav-item span{font-size:7px;white-space:nowrap}.nav-item b{font-size:18px}}

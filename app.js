@@ -121,7 +121,7 @@ function renderPostMedia(p){
 }
 async function loadFeed(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,caption,media_url,media_type,media_items,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
+ const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
  if(error){console.warn(error);toast('Не удалось загрузить ленту: '+error.message);return}
  const feed=$('feed');
  if(!data?.length){feed.innerHTML='<div class="empty-state"><div class="empty-icon">✧</div><h2>Лента только начинается</h2><p>Опубликуй первый момент и позови друзей в PIXY.</p></div>';return}
@@ -130,7 +130,7 @@ async function loadFeed(){
   const liked=own?.reaction==='like';
   const commentCount=p.comments?.[0]?.count||0;
   const reactionCount=(p.reactions||[]).filter(r=>r.reaction==='like').length;
-  return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><div class="avatar avatar-gradient">'+safe((p.profiles?.display_name||'P').slice(0,1))+'</div><div class="post-user"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></div></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+['❤️','🤩','😎','😂','🔥'].map(em=>' <button class="'+(own?.reaction===em?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+em+'" aria-label="Реакция '+em+'">'+em+'</button>').join('')+'</div></article>';
+  return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><button class="post-author-link" type="button" data-open-profile="'+p.author_id+'"><span class="avatar avatar-gradient">'+safe((p.profiles?.display_name||'P').slice(0,1))+'</span></button><button class="post-user post-author-link" type="button" data-open-profile="'+p.author_id+'"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></button></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+['❤️','🤩','😎','😂','🔥'].map(em=>' <button class="'+(own?.reaction===em?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+em+'" aria-label="Реакция '+em+'">'+em+'</button>').join('')+'</div></article>';
  }).join('');
 }
 async function loadVideos(){
@@ -261,15 +261,54 @@ $('voiceRecord').onclick=async()=>{
 };
 
 
+
 async function loadSocialStats(){
  if(!sb||!user)return;
- const [{count:followers},{count:following}] = await Promise.all([
- sb.from('follows').select('*',{count:'exact',head:true}).eq('following_id',user.id),
- sb.from('follows').select('*',{count:'exact',head:true}).eq('follower_id',user.id)
+ const [{count:followers},{count:following}]=await Promise.all([
+  sb.from('follows').select('*',{count:'exact',head:true}).eq('following_id',user.id),
+  sb.from('follows').select('*',{count:'exact',head:true}).eq('follower_id',user.id)
  ]);
- const nodes=document.querySelectorAll('[data-stat="followers"],[data-stat="following"]');
- nodes.forEach(n=>n.textContent=n.dataset.stat==='followers'?(followers||0):(following||0));
+ document.querySelectorAll('[data-stat="followers"]').forEach(n=>n.textContent=followers||0);
+ document.querySelectorAll('[data-stat="following"]').forEach(n=>n.textContent=following||0);
 }
+let activePublicProfile=null;
+function avatarMarkup(p,cls='profile-list-avatar'){return '<span class="'+cls+'" '+(p.avatar_url?'style="background-image:url('+safe(p.avatar_url)+');background-size:cover;background-position:center"':'')+'>'+(p.avatar_url?'':safe((p.display_name||p.username||'P').slice(0,1).toUpperCase()))+'</span>'}
+async function openPublicProfile(id){
+ if(!sb||!id)return;if(id===user?.id){nav('profile');return}
+ $('publicProfileModal').classList.remove('hidden');$('publicProfileContent').innerHTML='<div class="profile-view-loading">Загружаем профиль…</div>';
+ const [{data:p,error},{count:followers},{count:following},{data:posts}]=await Promise.all([
+  sb.from('profiles').select('id,username,display_name,bio,avatar_url,is_verified').eq('id',id).maybeSingle(),
+  sb.from('follows').select('*',{count:'exact',head:true}).eq('following_id',id),
+  sb.from('follows').select('*',{count:'exact',head:true}).eq('follower_id',id),
+  sb.from('posts').select('id,media_url,media_type,caption,created_at').eq('author_id',id).eq('visibility','public').order('created_at',{ascending:false}).limit(60)
+ ]);
+ if(error||!p){$('publicProfileContent').innerHTML='<div class="profile-view-loading">Не удалось загрузить профиль.</div>';return}
+ const {data:rel}=user?await sb.from('follows').select('following_id').eq('follower_id',user.id).eq('following_id',id).maybeSingle():{data:null};
+ activePublicProfile=p;
+ $('publicProfileContent').innerHTML='<header class="public-profile-head">'+avatarMarkup(p,'public-profile-avatar')+'<div><h2>'+safe(p.display_name||p.username)+'</h2><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></div>'+(user?'<button type="button" class="follow-action '+(rel?'following':'')+'" data-follow-toggle="'+p.id+'" data-following="'+(rel?'1':'0')+'">'+(rel?'Вы подписаны':'Подписаться')+'</button>':'')+'</header><p class="public-profile-bio">'+safe(p.bio||'')+'</p><div class="profile-stats public-profile-stats"><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="followers"><b>'+(followers||0)+'</b><span>подписчиков</span></button><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="following"><b>'+(following||0)+'</b><span>подписок</span></button></div><h3>Публикации</h3><div class="profile-grid public-profile-grid">'+((posts||[]).map(x=>'<div class="my-post">'+(x.media_type==='video'?'<video src="'+safe(x.media_url)+'" controls playsinline></video>':'<img src="'+safe(x.media_url)+'" alt="Публикация">')+'</div>').join('')||'<div class="empty-hint">Пока нет публикаций.</div>')+'</div>';
+}
+async function openFollowList(profileId,kind){
+ if(!profileId)return;$('followListModal').classList.remove('hidden');$('followListTitle').textContent=kind==='followers'?'Подписчики':'Подписки';$('followListContent').innerHTML='<div class="profile-view-loading">Загружаем список…</div>';
+ const col=kind==='followers'?'follower_id':'following_id',filter=kind==='followers'?'following_id':'follower_id';
+ const {data:rels,error}=await sb.from('follows').select(col).eq(filter,profileId).limit(300);
+ if(error){$('followListContent').textContent='Не удалось загрузить список: '+error.message;return}
+ const ids=(rels||[]).map(x=>x[col]);if(!ids.length){$('followListContent').innerHTML='<div class="profile-view-loading">Пока здесь никого нет.</div>';return}
+ const {data:people,error:pe}=await sb.from('profiles').select('id,username,display_name,avatar_url,is_verified').in('id',ids);
+ if(pe){$('followListContent').textContent=pe.message;return}
+ $('followListContent').innerHTML=(people||[]).map(p=>'<div class="follow-list-person"><button type="button" class="search-person-main" data-open-profile="'+p.id+'">'+avatarMarkup(p)+'<span><b>'+safe(p.display_name||p.username)+'</b><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></span></button>'+(user&&p.id!==user.id?'<button type="button" class="follow-action" data-follow-toggle="'+p.id+'" data-following="0">Подписаться</button>':'')+'</div>').join('')||'<div class="profile-view-loading">Список пуст.</div>';
+}
+document.addEventListener('click',async e=>{
+ const open=e.target.closest('[data-open-profile]');if(open){e.preventDefault();e.stopPropagation();await openPublicProfile(open.dataset.openProfile);return}
+ const stats=e.target.closest('[data-open-follow-list]');if(stats){e.preventDefault();await openFollowList(stats.dataset.openFollowList==='self'?user?.id:stats.dataset.openFollowList,stats.dataset.listKind);return}
+ const follow=e.target.closest('[data-follow-toggle]');
+ if(follow&&!follow.closest('#searchResults')){
+  e.preventDefault();if(!user)return toast('Войди в PIXY, чтобы подписываться.');
+  const id=follow.dataset.followToggle;if(id===user.id)return;const was=follow.dataset.following==='1';follow.disabled=true;
+  const r=was?await sb.from('follows').delete().eq('follower_id',user.id).eq('following_id',id):await sb.from('follows').upsert({follower_id:user.id,following_id:id},{onConflict:'follower_id,following_id'});
+  follow.disabled=false;if(r.error)return toast(r.error.message);follow.dataset.following=was?'0':'1';follow.textContent=was?'Подписаться':'Вы подписаны';follow.classList.toggle('following',!was);toast(was?'Подписка отменена':'Подписка оформлена');loadSocialStats();if(activePublicProfile?.id===id)openPublicProfile(id);return;
+ }
+});
+
 let activeCommentsPost=null;
 async function renderComments(){
  if(!sb||!activeCommentsPost)return;

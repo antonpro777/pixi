@@ -273,6 +273,17 @@ async function loadSocialStats(){
 }
 let activePublicProfile=null;
 function avatarMarkup(p,cls='profile-list-avatar'){return '<span class="'+cls+'" '+(p.avatar_url?'style="background-image:url('+safe(p.avatar_url)+');background-size:cover;background-position:center"':'')+'>'+(p.avatar_url?'':safe((p.display_name||p.username||'P').slice(0,1).toUpperCase()))+'</span>'}
+async function startDirectChatWith(profileUser,callAfter=false){
+ if(!user)return toast('Войди в PIXY, чтобы написать сообщение.');
+ if(!profileUser?.id||profileUser.id===user.id)return;
+ const {data:cid,error}=await sb.rpc('create_direct_conversation',{other_user:profileUser.id});
+ if(error||!cid)return toast(error?.message||'Не удалось открыть переписку.');
+ $('publicProfileModal').classList.add('hidden');
+ nav('messages');
+ await loadChatList();
+ await openChat(cid,profileUser.id,profileUser.username||'user');
+ if(callAfter)await startVoiceCall();
+}
 async function openPublicProfile(id){
  if(!sb||!id)return;if(id===user?.id){nav('profile');return}
  $('publicProfileModal').classList.remove('hidden');$('publicProfileContent').innerHTML='<div class="profile-view-loading">Загружаем профиль…</div>';
@@ -285,7 +296,7 @@ async function openPublicProfile(id){
  if(error||!p){$('publicProfileContent').innerHTML='<div class="profile-view-loading">Не удалось загрузить профиль.</div>';return}
  const {data:rel}=user?await sb.from('follows').select('following_id').eq('follower_id',user.id).eq('following_id',id).maybeSingle():{data:null};
  activePublicProfile=p;
- $('publicProfileContent').innerHTML='<header class="public-profile-head">'+avatarMarkup(p,'public-profile-avatar')+'<div><h2>'+safe(p.display_name||p.username)+'</h2><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></div>'+(user?'<button type="button" class="follow-action '+(rel?'following':'')+'" data-follow-toggle="'+p.id+'" data-following="'+(rel?'1':'0')+'">'+(rel?'Вы подписаны':'Подписаться')+'</button>':'')+'</header><p class="public-profile-bio">'+safe(p.bio||'')+'</p><div class="profile-stats public-profile-stats"><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="followers"><b>'+(followers||0)+'</b><span>подписчиков</span></button><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="following"><b>'+(following||0)+'</b><span>подписок</span></button></div><h3>Публикации</h3><div class="profile-grid public-profile-grid">'+((posts||[]).map(x=>'<div class="my-post">'+(x.media_type==='video'?'<video src="'+safe(x.media_url)+'" controls playsinline></video>':'<img src="'+safe(x.media_url)+'" alt="Публикация">')+'</div>').join('')||'<div class="empty-hint">Пока нет публикаций.</div>')+'</div>';
+ $('publicProfileContent').innerHTML='<header class="public-profile-head">'+avatarMarkup(p,'public-profile-avatar')+'<div><h2>'+safe(p.display_name||p.username)+'</h2><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></div>'+(user?'<button type="button" class="follow-action '+(rel?'following':'')+'" data-follow-toggle="'+p.id+'" data-following="'+(rel?'1':'0')+'">'+(rel?'Вы подписаны':'Подписаться')+'</button>':'')+'</header>'+(user?'<div class="public-profile-actions"><button type="button" class="primary-btn" data-start-chat="'+p.id+'" data-chat-name="'+safe(p.username)+'">✉ Написать</button><button type="button" class="chat-call-btn" data-start-call="'+p.id+'" data-chat-name="'+safe(p.username)+'">☎ Позвонить</button></div>':'')+'<p class="public-profile-bio">'+safe(p.bio||'')+'</p><div class="profile-stats public-profile-stats"><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="followers"><b>'+(followers||0)+'</b><span>подписчиков</span></button><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="following"><b>'+(following||0)+'</b><span>подписок</span></button></div><h3>Публикации</h3><div class="profile-grid public-profile-grid">'+((posts||[]).map(x=>'<div class="my-post">'+(x.media_type==='video'?'<video src="'+safe(x.media_url)+'" controls playsinline></video>':'<img src="'+safe(x.media_url)+'" alt="Публикация">')+'</div>').join('')||'<div class="empty-hint">Пока нет публикаций.</div>')+'</div>';
 }
 async function openFollowList(profileId,kind){
  if(!profileId)return;$('followListModal').classList.remove('hidden');$('followListTitle').textContent=kind==='followers'?'Подписчики':'Подписки';$('followListContent').innerHTML='<div class="profile-view-loading">Загружаем список…</div>';
@@ -298,6 +309,8 @@ async function openFollowList(profileId,kind){
  $('followListContent').innerHTML=(people||[]).map(p=>'<div class="follow-list-person"><button type="button" class="search-person-main" data-open-profile="'+p.id+'">'+avatarMarkup(p)+'<span><b>'+safe(p.display_name||p.username)+'</b><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></span></button>'+(user&&p.id!==user.id?'<button type="button" class="follow-action" data-follow-toggle="'+p.id+'" data-following="0">Подписаться</button>':'')+'</div>').join('')||'<div class="profile-view-loading">Список пуст.</div>';
 }
 document.addEventListener('click',async e=>{
+ const message=e.target.closest('[data-start-chat],[data-start-call]');
+ if(message){e.preventDefault();e.stopPropagation();await startDirectChatWith({id:message.dataset.startChat||message.dataset.startCall,username:message.dataset.chatName},!!message.dataset.startCall);return}
  const open=e.target.closest('[data-open-profile]');if(open){e.preventDefault();e.stopPropagation();await openPublicProfile(open.dataset.openProfile);return}
  const stats=e.target.closest('[data-open-follow-list]');if(stats){e.preventDefault();await openFollowList(stats.dataset.openFollowList==='self'?user?.id:stats.dataset.openFollowList,stats.dataset.listKind);return}
  const follow=e.target.closest('[data-follow-toggle]');

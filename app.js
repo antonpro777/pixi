@@ -27,9 +27,9 @@ function nav(view){
  const target=$('view-'+view);
  if(target){target.classList.remove('hidden');target.classList.remove('view-enter');void target.offsetWidth;target.classList.add('view-enter')}
  document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
- const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация']};
+ const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],notifications:['ТВОЯ АКТИВНОСТЬ','Уведомления'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация']};
  $('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';
- if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();
+ if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='notifications'&&user)loadNotifications();if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();
 }
 document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c){if(c.dataset.close==='composerModal'&&typeof stopCamera==='function')stopCamera();$(c.dataset.close).classList.add('hidden')}});
 $('showSignup').onclick=()=>setAuth('signup');
@@ -98,9 +98,50 @@ async function signOutOfPixy(){
 }
 $('signOut').onclick=signOutOfPixy;
 $('signOutProfile')?.addEventListener('click',signOutOfPixy);
+$('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu'),open=menu.classList.toggle('hidden')===false;$('profileMoreBtn').setAttribute('aria-expanded',String(open));});
+$('refreshNotifications')?.addEventListener('click',loadNotifications);
+document.addEventListener('click',e=>{if(!e.target.closest('.profile-actions')){$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false')}});
+
 function withTimeout(promise,ms,message){
  let timer;
  return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms)})]).finally(()=>clearTimeout(timer));
+}
+async function loadNotifications(){
+ if(!sb||!user)return;
+ const box=$('notificationFeed');if(!box)return;
+ box.innerHTML='<div class="notification-empty"><span class="notification-spinner">✦</span><b>Собираем активность…</b></div>';
+ const items=[];
+ try{
+  const {data:chats}=await sb.rpc('list_my_direct_chats');
+  for(const chat of (chats||[]).slice(0,25)){
+   const {data:msgs}=await sb.from('messages').select('id,sender_id,body,created_at').eq('conversation_id',chat.conversation_id).neq('sender_id',user.id).order('created_at',{ascending:false}).limit(2);
+   for(const m of msgs||[])items.push({type:'message',name:chat.username||'Пользователь',text:m.body||'Отправил(а) вложение',date:m.created_at,action:'messages',id:m.id});
+  }
+ }catch(err){console.warn('PIXY message notifications:',err)}
+ try{
+  const {data:followers}=await sb.from('follows').select('follower_id,created_at').eq('following_id',user.id).order('created_at',{ascending:false}).limit(20);
+  const ids=[...new Set((followers||[]).map(x=>x.follower_id))];
+  const {data:people}=ids.length?await sb.from('profiles').select('id,username,display_name').in('id',ids):{data:[]};
+  const map=Object.fromEntries((people||[]).map(p=>[p.id,p]));
+  for(const f of followers||[]){const p=map[f.follower_id];items.push({type:'follow',name:p?.username||'Новый пользователь',text:'подписался на тебя',date:f.created_at,action:'profile',id:f.follower_id})}
+ }catch(err){console.warn('PIXY follower notifications:',err)}
+ try{
+  const {data:posts}=await sb.from('posts').select('id').eq('author_id',user.id).limit(100);
+  const ids=(posts||[]).map(p=>p.id);
+  if(ids.length){
+   const [{data:comments},{data:reactions}]=await Promise.all([
+    sb.from('comments').select('id,post_id,author_id,body,created_at,profiles(username)').in('post_id',ids).neq('author_id',user.id).order('created_at',{ascending:false}).limit(25),
+    sb.from('reactions').select('id,post_id,user_id,reaction,created_at,profiles(username)').in('post_id',ids).neq('user_id',user.id).order('created_at',{ascending:false}).limit(25)
+   ]);
+   for(const x of comments||[])items.push({type:'comment',name:x.profiles?.username||'Пользователь',text:'оставил комментарий: '+(x.body||''),date:x.created_at,action:'profile',id:x.id});
+   for(const x of reactions||[])items.push({type:'like',name:x.profiles?.username||'Пользователь',text:x.reaction==='like'?'поставил лайк твоей публикации':'оставил реакцию '+x.reaction,date:x.created_at,action:'profile',id:x.id});
+  }
+ }catch(err){console.warn('PIXY post notifications:',err)}
+ items.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+ const icons={message:'✉',follow:'＋',comment:'▤',like:'♥'};
+ const colors={message:'message',follow:'follow',comment:'comment',like:'like'};
+ box.innerHTML=items.length?items.slice(0,60).map(x=>'<article class="notification-item"><span class="notification-icon '+colors[x.type]+'">'+icons[x.type]+'</span><div class="notification-copy"><b>@'+safe(x.name)+'</b><p>'+safe(x.text)+'</p><small>'+new Date(x.date).toLocaleString()+'</small></div><span class="notification-arrow">›</span></article>').join(''):'<div class="notification-empty"><span>✦</span><b>Пока тихо — и это нормально</b><p>Новые сообщения, подписки, комментарии и реакции появятся здесь.</p></div>';
+ const dot=$('notificationDot');if(dot)dot.classList.toggle('hidden',!items.length);
 }
 async function loadProfile(){
  if(!sb||!user)return;
@@ -116,7 +157,7 @@ function renderPostMedia(p){
  const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];
  if(p.media_type==='video')return '<div class="post-video-wrap"><video controls playsinline preload="metadata" '+(p.music_url?'muted data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
  const first=items[0]||{url:p.media_url};
- if(items.length>1)return '<div class="post-carousel" data-carousel data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+(p.music_url?'<button type="button" class="carousel-play-overlay" data-carousel-toggle>Нажмите, чтобы включить</button>':'')+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
+ if(items.length>1)return '<div class="post-carousel" data-carousel data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+(p.music_url?'<button type="button" class="carousel-play-overlay" data-carousel-toggle>Нажмите, чтобы включить</button>':'')+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span><span class="carousel-hint">‹ Листай ›</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
  return '<img src="'+safe(first.url||p.media_url)+'" alt="Публикация">';
 }
 async function loadFeed(){

@@ -56,3 +56,25 @@
 @media(max-width:760px){.nav{overflow-x:auto;justify-content:flex-start;gap:2px}.nav-item{flex:0 0 auto;min-width:47px}.moderation-search{flex-wrap:wrap}.moderation-search button{width:100%}.moderation-controls{grid-template-columns:1fr}.moderation-controls select,.moderation-controls textarea{grid-column:1}}
 
 .post-carousel{position:relative;display:grid;place-items:center;background:#0d0c14;border-radius:12px;overflow:hidden;min-height:180px}.post-carousel img{display:block;width:100%;max-height:72vh;object-fit:contain}.carousel-arrow{position:absolute;z-index:2;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:#171321d9;color:#fff;font-size:27px}.carousel-arrow.prev{left:10px}.carousel-arrow.next{right:10px}.carousel-count{position:absolute;right:12px;bottom:10px;padding:5px 9px;border-radius:20px;background:#171321d9;color:#fff;font-size:11px}.post-music{display:block;width:min(100%,420px);margin:9px auto}.post-video-wrap audio{display:block;width:100%;margin:8px 0}.music-library-admin{margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}.music-upload-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.music-upload-row input,#postMode,#postMusic{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:inherit}.music-upload-row button{grid-column:1/-1}@media(max-width:760px){.music-upload-row{grid-template-columns:1fr}.music-upload-row button{grid-column:auto}}
+
+
+/* Mobile navigation: four primary destinations; secondary tools live in profile */
+@media(max-width:760px){
+ .app{padding-bottom:92px}
+ .sidebar{height:78px;padding:8px 14px calc(8px + env(safe-area-inset-bottom));}
+ .nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;justify-content:stretch;gap:8px;overflow:visible}
+ .nav-item{display:flex!important;flex:initial;min-width:0;width:100%;height:60px;gap:4px;padding:6px 3px;border:1px solid transparent;border-radius:14px;background:transparent;align-items:center}
+ .nav-item[data-view="home"],.nav-item[data-view="wallet"],.nav-item[data-view="shop"],.nav-item[data-view="moderation"]{display:none!important}
+ .nav-item b{font-size:23px;line-height:1}
+ .nav-item span{font-size:9px;line-height:1.1;white-space:nowrap}
+ .nav-item.active{background:linear-gradient(145deg,#302443,#211b30);border-color:#9c7be844;color:#e5d5ff}
+ .nav-item.active:before{display:none}
+ .profile-actions{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;margin-top:12px}
+ .profile-actions .outline-btn{min-height:39px;padding:9px 12px;font-size:11px}
+ .profile-wallet-btn b{font-size:10px}
+}
+@media(max-width:380px){
+ .nav{gap:4px}
+ .nav-item span{font-size:8px}
+ .nav-item b{font-size:21px}
+}

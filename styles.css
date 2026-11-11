@@ -31,3 +31,26 @@
 }
 
 @media(max-width:760px){.nav{gap:2px}.nav-item{flex:1;min-width:0;padding-left:2px;padding-right:2px}.nav-item span{font-size:7px;white-space:nowrap}.nav-item b{font-size:18px}}
+
+/* Media fit: show the complete uploaded image/video instead of cropping */
+.post-image{height:auto;min-height:0;display:grid;place-items:center;background:#0d0c14;overflow:hidden}
+.post-image img,.post-image video{display:block;width:100%;height:auto;max-height:72vh;object-fit:contain;object-position:center;border-radius:12px;background:#0d0c14}
+.profile-grid img,.profile-grid video{width:100%;aspect-ratio:1;object-fit:contain;object-position:center;background:#0d0c14;border-radius:10px}
+#view-videos>article video{display:block;width:100%;height:auto;max-height:72vh;object-fit:contain;object-position:center;background:#0d0c14}
+.verified-badge{display:inline-grid;place-items:center;width:17px;height:17px;margin-left:5px;border-radius:50%;background:linear-gradient(145deg,#8f7bff,#bd8bff);color:white;font-size:11px;font-weight:900;vertical-align:middle;box-shadow:0 0 12px #a68aff55}
+.post-user .verified-badge{width:14px;height:14px;font-size:9px;margin-left:4px}
+.moderation-search{display:flex;gap:9px;margin:16px 0}
+.moderation-search input{flex:1;min-width:0;padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:inherit}
+.moderation-help{font-size:11px;color:var(--muted);line-height:1.6;margin:10px 0 16px}
+.moderation-results{display:grid;gap:12px}
+.moderation-user{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.moderation-user-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.moderation-user-head small{display:block;color:var(--muted);margin-top:3px}
+.moderation-controls{display:grid;grid-template-columns:minmax(120px,1fr) minmax(120px,1fr);gap:8px;margin-top:10px}
+.moderation-controls select,.moderation-controls textarea{grid-column:1/-1;width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:inherit}
+.moderation-controls textarea{min-height:62px;resize:vertical}
+.moderation-controls button{padding:10px;border-radius:9px;background:#302441;color:#e8dcff;font-size:10px}
+.moderation-controls button[data-mod-action="ban"]{background:#552b42;color:#ffd9e5}
+.moderation-controls button[data-mod-action="unban"]{background:#20483e;color:#c8ffeb}
+.moderation-notice{margin:12px 0;padding:12px 14px;border:1px solid #b58cff55;border-radius:11px;background:#9a70e51a;color:#e4d7ff;font-size:11px;line-height:1.6}
+@media(max-width:760px){.nav{overflow-x:auto;justify-content:flex-start;gap:2px}.nav-item{flex:0 0 auto;min-width:47px}.moderation-search{flex-wrap:wrap}.moderation-search button{width:100%}.moderation-controls{grid-template-columns:1fr}.moderation-controls select,.moderation-controls textarea{grid-column:1}}

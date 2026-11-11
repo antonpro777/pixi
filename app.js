@@ -46,8 +46,12 @@ async function loadChatList(){
  const {data:members,error}=await sb.from('conversation_members').select('conversation_id').eq('user_id',user.id);
  if(error){$('chatList').textContent=error.message;return}
  const ids=(members||[]).map(x=>x.conversation_id);if(!ids.length){$('chatList').innerHTML='<p class="hint">Пока нет диалогов. Найди пользователя выше.</p>';return}
- const {data:others}=await sb.from('conversation_members').select('conversation_id,user_id,profiles(username,display_name)').in('conversation_id',ids).neq('user_id',user.id);
- $('chatList').innerHTML=(others||[]).map(x=>'<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.user_id+'" data-chat-name="'+safe(x.profiles?.username||'user')+'" style="display:block;width:100%;padding:12px;text-align:left;border:0;border-radius:12px;background:transparent;color:inherit">@'+safe(x.profiles?.username||'user')+'</button>').join('');
+ const {data:others,error:otherError}=await sb.from('conversation_members').select('conversation_id,user_id').in('conversation_id',ids).neq('user_id',user.id);
+ if(otherError){$('chatList').textContent=otherError.message;return}
+ const userIds=[...new Set((others||[]).map(x=>x.user_id))];
+ const {data:people}=await sb.from('profiles').select('id,username,display_name').in('id',userIds);
+ const map=Object.fromEntries((people||[]).map(p=>[p.id,p]));
+ $('chatList').innerHTML=(others||[]).map(x=>{const p=map[x.user_id]||{};return '<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.user_id+'" data-chat-name="'+safe(p.username||'user')+'" style="display:block;width:100%;padding:12px;text-align:left;border:0;border-radius:12px;background:transparent;color:inherit">@'+safe(p.username||'user')+'</button>'}).join('');
 }
 async function openChat(cid,uid,name){
  activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;
@@ -153,8 +157,9 @@ async function loadWallet(){
  $('walletBalance').textContent=bal;$('walletStatus').textContent='Внутренние баллы PIXY. Не криптовалюта и не деньги.';
  const {data:rows}=await sb.from('xion_ledger').select('amount,reason,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(12);
  $('walletHistory').innerHTML=(rows||[]).map(x=>'<div><span>'+safe(x.reason.replaceAll('_',' '))+'</span><b>'+(x.amount>0?'+':'')+x.amount+' pts</b></div>').join('');
- const {data:gifts}=await sb.from('gift_transfers').select('id,gift_id,created_at,profiles!gift_transfers_sender_id_fkey(username)').eq('recipient_id',user.id).order('created_at',{ascending:false}).limit(20);
- $('receivedGifts').innerHTML=(gifts||[]).map(g=>'<div><span>'+safe(giftEmoji[g.gift_id]||'🎁')+' '+safe(g.gift_id)+' от @'+safe(g.profiles?.username||'user')+'</span><small>'+new Date(g.created_at).toLocaleDateString()+'</small></div>').join('')||'<p>Подарков пока нет.</p>';
+ const {data:gifts}=await sb.from('gift_transfers').select('id,gift_id,sender_id,created_at').eq('recipient_id',user.id).order('created_at',{ascending:false}).limit(20);
+ const senderIds=[...new Set((gifts||[]).map(g=>g.sender_id))];const {data:senders}=senderIds.length?await sb.from('profiles').select('id,username').in('id',senderIds):{data:[]};const senderMap=Object.fromEntries((senders||[]).map(p=>[p.id,p.username]));
+ $('receivedGifts').innerHTML=(gifts||[]).map(g=>'<div><span>'+safe(giftEmoji[g.gift_id]||'🎁')+' '+safe(g.gift_id)+' от @'+safe(senderMap[g.sender_id]||'user')+'</span><small>'+new Date(g.created_at).toLocaleDateString()+'</small></div>').join('')||'<p>Подарков пока нет.</p>';
 }
 async function loadShop(){
  if(!sb)return;

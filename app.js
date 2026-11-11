@@ -172,7 +172,7 @@ function playPixyBeep(kind='tap'){
  try{
   if(!pixyAudioContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;pixyAudioContext=new AC()}
   const ctx=pixyAudioContext;if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-  const patterns=kind==='record-start'?[[660,0,.12],[880,.16,.16]]:kind==='record-stop'?[[880,0,.12],[550,.16,.2]]:kind==='call-end'?[[660,0,.12],[440,.15,.2]]:[[740,0,.1]];
+  const patterns=kind==='record-start'?[[660,0,.12],[880,.16,.16]]:kind==='record-stop'?[[880,0,.12],[550,.16,.2]]:kind==='call-end'?[[660,0,.12],[440,.15,.2]]:kind==='connected'?[[880,0,.1],[1100,.13,.13]]:[[740,0,.1]];
   const now=ctx.currentTime;
   patterns.forEach(([freq,delay,duration])=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(.12,now+delay+.015);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.02)});
  }catch(err){console.warn('PIXY sound:',err)}
@@ -221,7 +221,7 @@ async function createCallPeer(){
  const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});callPeer=pc;
  pc.onicecandidate=e=>{if(e.candidate)sendCallSignal('ice',{candidate:e.candidate}).catch(console.warn)};
  pc.ontrack=e=>{const a=$('callRemoteAudio');if(!a.srcObject)a.srcObject=e.streams?.[0]||new MediaStream([e.track]);a.play().catch(()=>{$('callStatus').textContent='Нажми «Включить громкую связь» для звука.'})};
- pc.onconnectionstatechange=()=>{if(callPeer!==pc)return;if(pc.connectionState==='connected'){ $('callStatus').textContent='На связи';if(!callStartedAt){callStartedAt=Date.now();callTimer=setInterval(updateCallTimer,1000);updateCallTimer()} }else if(pc.connectionState==='connecting')$('callStatus').textContent='Соединяем…';else if(pc.connectionState==='failed')$('callStatus').textContent='Сеть не пропускает прямое соединение. Может потребоваться TURN-сервер.';else if(pc.connectionState==='disconnected')$('callStatus').textContent='Связь прервана…'};
+ pc.onconnectionstatechange=()=>{if(callPeer!==pc)return;if(pc.connectionState==='connected'){stopCallTone();playPixyBeep('connected'); $('callStatus').textContent='На связи';if(!callStartedAt){callStartedAt=Date.now();callTimer=setInterval(updateCallTimer,1000);updateCallTimer()} }else if(pc.connectionState==='connecting')$('callStatus').textContent='Соединяем…';else if(pc.connectionState==='failed')$('callStatus').textContent='Сеть не пропускает прямое соединение. Может потребоваться TURN-сервер.';else if(pc.connectionState==='disconnected')$('callStatus').textContent='Связь прервана…'};
  callLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
  callLocalStream.getAudioTracks().forEach(t=>{t.enabled=!callMuted;pc.addTrack(t,callLocalStream)});return pc;
 }
@@ -250,7 +250,7 @@ async function handleCallSignal(s,cid=callChannelConversation){
  else if(['hangup','decline','busy'].includes(s.type)){stopCallTone();await endVoiceCall(false);toast(s.type==='busy'?'Собеседник уже разговаривает.':s.type==='decline'?'Вызов отклонён.':'Звонок завершён.')}
 }
 async function endVoiceCall(notify=true){
- stopCallTone();if(notify&&activeCallChannel){try{await sendCallSignal(callDirection==='incoming'?'decline':'hangup')}catch(_){}}
+ stopCallTone();playPixyBeep('call-end');if(notify&&activeCallChannel){try{await sendCallSignal(callDirection==='incoming'?'decline':'hangup')}catch(_){}}
  if(callTimer){clearInterval(callTimer);callTimer=null}if(callPeer){try{callPeer.close()}catch(_){}callPeer=null}if(callLocalStream){callLocalStream.getTracks().forEach(t=>t.stop());callLocalStream=null}
  const a=$('callRemoteAudio');a.pause();a.srcObject=null;a.muted=false;callPendingOffer=null;callPendingIce=[];callStartedAt=0;callMuted=false;callSpeakerOn=true;callDirection='';
  $('callTimer').textContent='00:00';$('callMuteBtn').textContent='Выключить микрофон';$('callSpeakerBtn').textContent='Выключить громкую связь';$('callAcceptBtn').dataset.acceptRequested='0';callUi(false,'');

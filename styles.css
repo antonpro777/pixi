@@ -484,6 +484,5 @@ body.call-active{overflow:hidden}
  .top-actions .icon-btn{width:35px;height:35px}
  .profile-actions{justify-content:flex-start}
  .profile-primary-actions{grid-template-columns:48px;display:flex}
- .profile-edit-btn{display:none}
 }
 @media(max-width:380px){.nav-create-btn{width:43px;height:43px;font-size:25px}.top-actions .create-btn{padding:6px 8px}}

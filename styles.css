@@ -12,3 +12,20 @@
 .auth-p{background:linear-gradient(145deg,#b5a0ff,#7252d8 62%,#7b6bf0)}
 
 @media(max-width:760px){.chat-layout{grid-template-columns:1fr!important}.chat-sidebar{max-height:220px;overflow:auto}.chat-panel{min-height:360px}.chat-panel form{flex-wrap:wrap}.chat-panel form input{min-width:100%!important}.shop-tile{cursor:pointer}}
+
+/* Profile wallet shortcut and clean single-column workspace */
+.app{grid-template-columns:240px minmax(0,1fr)}
+.profile-wallet-btn{display:inline-flex;align-items:center;gap:7px;color:#d7c4ff}
+.profile-wallet-btn>span:first-child{font-size:16px;color:#c4a2ff}
+.profile-wallet-btn b{font-size:10px;color:#a8efd9}
+@media(max-width:1200px){.app{grid-template-columns:205px minmax(0,1fr)}}
+@media(max-width:760px){
+ .profile-actions{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-start;margin-top:10px}
+ .profile-wallet-btn{order:-1}
+ .profile-wallet-btn b{font-size:9px}
+ .profile-stats{gap:22px}
+ .profile-cover{border-radius:15px}
+ .auth-right{padding:22px 18px}
+ .auth-box{width:min(420px,100%)}
+ .mobile-brand{margin-bottom:42px}
+}

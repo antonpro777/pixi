@@ -233,3 +233,32 @@
 .sound-picker-footer #soundUseBtn:disabled{opacity:.45}
 @media(max-width:760px){.camera-composer{width:100vw!important;padding:0!important}.camera-live-wrap{height:100dvh!important;min-height:0!important}.camera-bottom{bottom:calc(80px + env(safe-area-inset-bottom));grid-template-columns:1fr 82px 1fr}.capture-shutter{width:76px;height:76px}.capture-shutter span{width:56px;height:56px}.camera-publish-panel{max-height:44%}}
 @media(min-width:761px){.camera-live-wrap>video{object-fit:contain!important}.camera-bottom{max-width:520px;margin:auto}.camera-sound-pill{top:82px}}
+
+
+/* PIXY publish, delete, zoom and call UI */
+.publish-status{margin:6px 0 9px;padding:8px 10px;border-radius:10px;background:#ffffff12;color:#f0e7ff;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.publish-status.hidden{display:none}
+.profile-grid .my-post{position:relative;min-width:0}
+.profile-grid .my-post img,.profile-grid .my-post video{display:block}
+.post-delete-btn{border:1px solid #ff9aac66;border-radius:9px;background:#4a1c2b;color:#ffd7df;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.profile-grid .post-delete-btn{position:absolute;right:6px;bottom:6px}
+.camera-zoom{position:absolute;z-index:4;left:16px;right:16px;bottom:150px;display:grid;gap:5px;padding:9px 12px;border:1px solid #ffffff33;border-radius:14px;background:#08070ca8;backdrop-filter:blur(12px);color:#fff}
+.camera-zoom label{display:flex;justify-content:space-between;font-size:11px;font-weight:700}
+.camera-zoom input{width:100%;accent-color:#c3a5ff}
+.camera-zoom input:disabled{opacity:.45}
+.chat-conversation-head{gap:10px}
+.chat-call-btn{margin-left:auto;padding:9px 14px;border:1px solid #a98aff66;border-radius:11px;background:#35264e;color:#e7d9ff;font-weight:800;font-size:11px}
+.call-overlay{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:18px;background:#07060def;backdrop-filter:blur(18px)}
+.call-overlay.hidden{display:none}
+.call-card{width:min(100%,420px);padding:28px 22px;border:1px solid #ffffff1c;border-radius:24px;background:linear-gradient(150deg,#211b31,#111019);text-align:center;box-shadow:0 25px 90px #0009;color:#fff}
+.call-avatar{width:104px;height:104px;margin:0 auto 18px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(145deg,#a98bff,#dc83c6);font-size:42px;font-weight:900}
+.call-card h2{margin:0 0 8px;font-size:23px}
+.call-card p{margin:0;color:#c8bddb;font-size:13px}
+.call-timer{display:block;margin:16px 0 22px;font-size:24px;font-variant-numeric:tabular-nums}
+.call-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.call-controls button{min-height:44px;padding:10px;border:1px solid #ffffff20;border-radius:12px;background:#30283d;color:#fff;font-size:11px;font-weight:800}
+.call-controls button.hidden{display:none}
+.call-controls .call-accept{background:#247b56}
+.call-controls .call-decline,.call-controls .call-hangup{background:#a72f4b}
+.call-controls .call-hangup{grid-column:1/-1}
+@media(max-width:480px){.camera-zoom{bottom:144px}.call-card{padding:24px 16px}.call-controls{grid-template-columns:1fr}}

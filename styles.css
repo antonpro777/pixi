@@ -311,3 +311,52 @@
 .public-profile-actions .primary-btn{flex:1}
 .public-profile-actions .chat-call-btn{flex:0 0 auto;border:1px solid #9e80e566;background:#ffffff0b;color:var(--text)}
 @media(max-width:420px){.public-profile-actions button{padding:9px 10px;font-size:10px}}
+
+
+/* PIXY immersive chat and call experience */
+body.chat-open{overflow:hidden}
+body.chat-open .app{position:fixed;inset:0;z-index:80;display:block;width:100%;max-width:none;height:100dvh;min-height:0;padding:0;margin:0;background:var(--bg)}
+body.chat-open .sidebar,body.chat-open .rightbar,body.chat-open .topbar,body.chat-open .section-heading{display:none!important}
+body.chat-open .main{height:100dvh;min-height:0;padding:0;margin:0;overflow:hidden}
+body.chat-open #view-messages{height:100dvh;min-height:0;margin:0;padding:0}
+body.chat-open .chat-layout{display:block;width:100%;height:100dvh;min-height:0}
+body.chat-open #chatPeoplePanel{display:none!important}
+body.chat-open #chatConversationPanel{display:flex!important;flex-direction:column;width:100%;height:100dvh;min-height:0;padding:0;border:0;border-radius:0;background:linear-gradient(180deg,#171421,#0e0d15);overflow:hidden}
+body.chat-open .chat-conversation-head{flex:0 0 76px;padding:12px clamp(16px,4vw,48px);border-bottom:1px solid #ffffff12;background:#171520;box-shadow:0 8px 28px #0002}
+body.chat-open #chatTitle{font-size:16px;font-weight:800;letter-spacing:.1px}
+body.chat-open .chat-back-btn{width:44px;height:44px;font-size:25px;background:#29233a}
+body.chat-open .chat-call-btn{min-width:112px;height:44px;border-radius:13px;background:linear-gradient(120deg,#8e6af0,#bb75d5);border:0;color:white;font-size:12px;box-shadow:0 6px 22px #9868ef35}
+body.chat-open .chat-messages{flex:1;min-height:0;padding:22px clamp(16px,8vw,110px);overflow-y:auto;overscroll-behavior:contain}
+body.chat-open .chat-send-form{flex:0 0 auto;padding:14px clamp(16px,4vw,48px) max(14px,env(safe-area-inset-bottom));background:#171520;border-top:1px solid #ffffff12;align-items:center}
+body.chat-open .chat-send-form input{height:48px;border-radius:15px;padding:0 16px;background:#0e0d15;border-color:#ffffff18;font-size:14px}
+body.chat-open .chat-send-form .primary-btn{height:48px;padding:0 22px;border-radius:14px}
+body.chat-open .chat-send-form .secondary-btn{height:48px;border-radius:14px}
+body.call-active{overflow:hidden}
+.call-overlay{padding:0;background:radial-gradient(ellipse at 50% 28%,#34234f 0%,#15111f 42%,#07060d 100%)}
+.call-card{position:relative;width:100%;height:100%;max-width:none;min-height:100dvh;padding:clamp(34px,8vh,90px) 22px max(28px,env(safe-area-inset-bottom));border:0;border-radius:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:auto}
+.call-avatar{width:clamp(112px,19vw,164px);height:clamp(112px,19vw,164px);margin:0 auto 26px;border:5px solid #ffffff18;box-shadow:0 0 0 14px #b18aff0d,0 0 75px #a477ff55;font-size:clamp(42px,8vw,64px);animation:callPulse 2.2s ease-in-out infinite}
+.call-card h2{font:800 clamp(25px,4vw,34px) Manrope;margin:0 0 12px}
+.call-card p{font-size:15px;color:#d6cbe7}
+.call-timer{font-size:30px;margin:18px 0 44px;letter-spacing:2px}
+.call-controls{width:min(100%,440px);grid-template-columns:1fr 1fr;gap:14px;margin-top:auto}
+.call-controls button{min-height:58px;border-radius:18px;font-size:13px;background:#ffffff12;border:1px solid #ffffff20;backdrop-filter:blur(12px)}
+.call-controls .call-accept{background:linear-gradient(120deg,#1d9b68,#35bd80);border:0}
+.call-controls .call-decline,.call-controls .call-hangup{background:linear-gradient(120deg,#c63855,#ed526d);border:0}
+.call-controls .call-hangup{grid-column:1/-1}
+.call-controls .call-mute{background:#ffffff16}
+@keyframes callPulse{0%,100%{box-shadow:0 0 0 0 #b18aff22,0 0 55px #a477ff40}50%{box-shadow:0 0 0 18px #b18aff08,0 0 85px #a477ff66}}
+@media(max-width:760px){
+ body.chat-open .chat-conversation-head{flex-basis:68px;padding:9px 12px}
+ body.chat-open .chat-call-btn{min-width:96px;padding:0 13px}
+ body.chat-open .chat-messages{padding:14px}
+ body.chat-open .chat-send-form{gap:7px;padding:10px 10px max(10px,env(safe-area-inset-bottom))}
+ body.chat-open .chat-send-form input{min-width:0!important;flex:1 1 100%;height:46px}
+ body.chat-open .chat-send-form .primary-btn{flex:1;height:44px}
+ body.chat-open .chat-send-form .secondary-btn{width:48px;height:44px}
+ .call-card{padding:40px 20px max(24px,env(safe-area-inset-bottom))}
+ .call-controls{grid-template-columns:1fr 1fr;gap:10px}
+ .call-controls button{min-height:54px}
+}
+@media(min-width:761px){
+ body.chat-open .chat-messages{max-width:1100px;width:100%;margin:0 auto}
+}

@@ -262,3 +262,14 @@
 .call-controls .call-decline,.call-controls .call-hangup{background:#a72f4b}
 .call-controls .call-hangup{grid-column:1/-1}
 @media(max-width:480px){.camera-zoom{bottom:144px}.call-card{padding:24px 16px}.call-controls{grid-template-columns:1fr}}
+
+/* Compact camera zoom and post actions */
+.camera-zoom{left:50%;right:auto;bottom:calc(158px + env(safe-area-inset-bottom));width:min(210px,58vw);gap:3px;padding:6px 10px;border-radius:10px;background:#08070c88}
+.camera-zoom label{font-size:10px;line-height:1.2}
+.camera-zoom input{height:12px;margin:0;cursor:pointer}
+.post-delete-btn{display:grid;place-items:center;width:30px;height:30px;min-width:30px;padding:0;border:1px solid #ffffff38;border-radius:50%;background:#17131dcc;color:#ffb7c5;font-size:14px;line-height:1;backdrop-filter:blur(8px)}
+.profile-grid .post-delete-btn{right:5px;bottom:5px}
+.post-delete-btn:hover{background:#9d304c;color:#fff;border-color:#ff9aac}
+.profile-signout-btn{border-color:#ff9aac55!important;color:#ffc3d0!important}
+.mini-user>button#signOut{width:34px;height:34px;display:grid;place-items:center;border:1px solid #ffffff22;border-radius:10px;background:#ffffff0b;font-size:16px;color:#e7d9ff}
+@media(max-width:760px){.camera-zoom{bottom:calc(156px + env(safe-area-inset-bottom));width:min(190px,55vw)}}

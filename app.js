@@ -97,13 +97,26 @@ async function loadProfile(){
   if(result.data)profile=result.data;
  }catch(error){console.warn('PIXY profile fallback:',error)}
 }
-function renderPostMedia(p){const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];if(p.media_type==='video')return '<div class="post-video-wrap"><video controls playsinline preload="metadata" '+(p.music_url?'muted data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';const first=items[0]||{url:p.media_url};if(items.length>1)return '<div class="post-carousel" data-carousel data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">+(p.music_url?'<button type="button" class="carousel-play-overlay" data-carousel-toggle>Нажмите, чтобы включить</button>':'')+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');return '<img src="'+safe(first.url||p.media_url)+'" alt="Публикация">'}
+function renderPostMedia(p){
+ const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];
+ if(p.media_type==='video')return '<div class="post-video-wrap"><video controls playsinline preload="metadata" '+(p.music_url?'muted data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
+ const first=items[0]||{url:p.media_url};
+ if(items.length>1)return '<div class="post-carousel" data-carousel data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+(p.music_url?'<button type="button" class="carousel-play-overlay" data-carousel-toggle>Нажмите, чтобы включить</button>':'')+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
+ return '<img src="'+safe(first.url||p.media_url)+'" alt="Публикация">';
+}
 async function loadFeed(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,caption,media_url,media_type,media_items,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified)').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
- if(error){console.warn(error);return}const feed=$('feed');
+ const {data,error}=await sb.from('posts').select('id,caption,media_url,media_type,media_items,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
+ if(error){console.warn(error);toast('Не удалось загрузить ленту: '+error.message);return}
+ const feed=$('feed');
  if(!data?.length){feed.innerHTML='<div class="empty-state"><div class="empty-icon">✧</div><h2>Лента только начинается</h2><p>Опубликуй первый момент и позови друзей в PIXY.</p></div>';return}
- feed.innerHTML=data.map(p=>'<article class="post-card"><div class="post-head"><div class="avatar avatar-gradient">'+safe((p.profiles?.display_name||'P').slice(0,1))+'</div><div class="post-user"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></div></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button data-like="'+p.id+'">♡ <span>Нравится</span></button><button data-comment="'+p.id+'">▢ <span>Комментировать</span></button></div><div class="reaction-row"><button data-react-post="'+p.id+'" data-reaction="❤️">❤️</button><button data-react-post="'+p.id+'" data-reaction="🤩">🤩</button><button data-react-post="'+p.id+'" data-reaction="😎">😎</button><button data-react-post="'+p.id+'" data-reaction="😂">😂</button><button data-react-post="'+p.id+'" data-reaction="🔥">🔥</button></div></article>').join('');
+ feed.innerHTML=data.map(p=>{
+  const own=(p.reactions||[]).find(r=>r.user_id===user?.id);
+  const liked=own?.reaction==='like';
+  const commentCount=p.comments?.[0]?.count||0;
+  const reactionCount=(p.reactions||[]).length;
+  return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><div class="avatar avatar-gradient">'+safe((p.profiles?.display_name||'P').slice(0,1))+'</div><div class="post-user"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></div></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+['❤️','🤩','😎','😂','🔥'].map(em=>' <button class="'+(own?.reaction===em?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+em+'" aria-label="Реакция '+em+'">'+em+'</button>').join('')+'</div></article>';
+ }).join('');
 }
 async function loadVideos(){
  if(!sb)return;const {data,error}=await sb.from('posts').select('id,caption,media_url,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
@@ -186,24 +199,83 @@ async function loadSocialStats(){
  const nodes=document.querySelectorAll('[data-stat="followers"],[data-stat="following"]');
  nodes.forEach(n=>n.textContent=n.dataset.stat==='followers'?(followers||0):(following||0));
 }
-async function showPostComments(postId){
- const {data,error}=await sb.from('comments').select('body,created_at,profiles(username)').eq('post_id',postId).order('created_at',{ascending:true}).limit(50);
- if(error)return toast(error.message);
- const lines=(data||[]).map(x=>'@'+(x.profiles?.username||'user')+': '+x.body);
- alert(lines.length?lines.join('\\n'):'Пока нет комментариев.');
+let activeCommentsPost=null;
+async function renderComments(){
+ if(!sb||!activeCommentsPost)return;
+ $('commentsList').innerHTML='<p class="comments-empty">Загружаем комментарии…</p>';
+ const {data,error}=await sb.from('comments').select('id,body,created_at,author_id,profiles(username,display_name,avatar_url),comment_reactions(user_id)').eq('post_id',activeCommentsPost).order('created_at',{ascending:true}).limit(100);
+ if(error){$('commentsList').innerHTML='<p class="comments-empty">Не удалось загрузить комментарии: '+safe(error.message)+'</p>';return}
+ const rows=data||[];
+ $('commentsCount').textContent=rows.length+' комментариев';
+ $('commentsList').innerHTML=rows.length?rows.map(x=>{
+  const likes=x.comment_reactions||[],mine=likes.some(v=>v.user_id===user?.id);
+  return '<article class="comment-item"><div class="comment-avatar">'+safe((x.profiles?.display_name||x.profiles?.username||'P').slice(0,1).toUpperCase())+'</div><div class="comment-body"><div class="comment-meta"><b>@'+safe(x.profiles?.username||'user')+'</b><time>'+new Date(x.created_at).toLocaleString()+'</time></div><p>'+safe(x.body)+'</p></div><button class="comment-like '+(mine?'liked':'')+'" type="button" data-comment-like="'+x.id+'" data-liked="'+(mine?'1':'0')+'" aria-label="Нравится комментарий">♥ <span>'+likes.length+'</span></button></article>';
+ }).join(''):'<p class="comments-empty">Пока комментариев нет.</p>';
 }
-
+async function openComments(postId){
+ if(!user)return toast('Войди в PIXY, чтобы комментировать.');
+ activeCommentsPost=postId;
+ const d=$('commentsDrawer');d.classList.remove('hidden');d.setAttribute('aria-hidden','false');
+ requestAnimationFrame(()=>d.classList.add('open'));
+ $('commentInput').value='';
+ await renderComments();
+ setTimeout(()=>$('commentInput').focus({preventScroll:true}),180);
+}
+function closeComments(){
+ const d=$('commentsDrawer');d.classList.remove('open');d.setAttribute('aria-hidden','true');
+ setTimeout(()=>{if(!d.classList.contains('open'))d.classList.add('hidden')},260);
+ activeCommentsPost=null;
+}
+document.addEventListener('click',e=>{
+ if(e.target.closest('[data-comments-close]'))closeComments();
+ const like=e.target.closest('[data-comment-like]');
+ if(like){
+  if(!user)return toast('Войди, чтобы лайкать комментарии.');
+  const commentId=like.dataset.commentLike,wasLiked=like.dataset.liked==='1';
+  (async()=>{
+   const result=wasLiked?await sb.from('comment_reactions').delete().eq('comment_id',commentId).eq('user_id',user.id):await sb.from('comment_reactions').insert({comment_id:commentId,user_id:user.id});
+   if(result.error)return toast(result.error.message);
+   await renderComments();
+  })();
+ }
+});
+$('commentForm').onsubmit=async e=>{
+ e.preventDefault();const body=$('commentInput').value.trim();
+ if(!body||!activeCommentsPost)return;
+ const submit=$('commentForm').querySelector('button');submit.disabled=true;
+ const {error}=await sb.from('comments').insert({post_id:activeCommentsPost,author_id:user.id,body:body.slice(0,1000)});
+ if(error)toast('Комментарий не отправлен: '+error.message);
+ else{$('commentInput').value='';await renderComments();const count=document.querySelector('[data-post-card="'+activeCommentsPost+'"] [data-comment-count]');if(count)count.textContent=String(Number(count.textContent||0)+1)}
+ submit.disabled=false;
+};
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&activeCommentsPost)closeComments()});
 function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 $('feed').addEventListener('click',async e=>{
  const rb=e.target.closest('[data-react-post]');
- if(rb){if(!sb||!user)return toast('Войди в PIXY, чтобы реагировать.');const {error}=await sb.from('reactions').upsert({post_id:rb.dataset.reactPost,user_id:user.id,reaction:rb.dataset.reaction},{onConflict:'post_id,user_id'});if(error)return toast(error.message);toast('Реакция '+rb.dataset.reaction+' добавлена');return}
-
+ if(rb){
+  if(!sb||!user)return toast('Войди в PIXY, чтобы реагировать.');
+  const card=rb.closest('[data-post-card]');
+  const selected=rb.classList.contains('is-reacted');
+  const {error}=selected?await sb.from('reactions').delete().eq('post_id',rb.dataset.reactPost).eq('user_id',user.id):await sb.from('reactions').upsert({post_id:rb.dataset.reactPost,user_id:user.id,reaction:rb.dataset.reaction},{onConflict:'post_id,user_id'});
+  if(error)return toast('Не удалось поставить реакцию: '+error.message);
+  if(card){card.querySelectorAll('[data-react-post]').forEach(x=>x.classList.toggle('is-reacted',x===rb&&!selected));}
+  toast(selected?'Реакция убрана':'Реакция добавлена');return;
+ }
  const b=e.target.closest('[data-like]');
- if(b){if(!sb||!user)return toast('Войди в PIXY, чтобы ставить реакции.');const {error}=await sb.from('reactions').upsert({post_id:b.dataset.like,user_id:user.id,reaction:'like'},{onConflict:'post_id,user_id'});if(error)toast(error.message);else{b.innerHTML='♥ <span>Тебе нравится</span>';b.style.color='#f58ac7'}return}
+ if(b){
+  if(!sb||!user)return toast('Войди в PIXY, чтобы ставить лайки.');
+  const card=b.closest('[data-post-card]'),was=b.classList.contains('is-liked');
+  const result=was?await sb.from('reactions').delete().eq('post_id',b.dataset.like).eq('user_id',user.id):await sb.from('reactions').upsert({post_id:b.dataset.like,user_id:user.id,reaction:'like'},{onConflict:'post_id,user_id'});
+  if(result.error)return toast('Не удалось изменить лайк: '+result.error.message);
+  b.classList.toggle('is-liked',!was);b.firstChild.textContent=was?'♡':'♥';
+  const count=b.querySelector('[data-like-count]');if(count)count.textContent=String(Math.max(0,Number(count.textContent||0)+(was?-1:1)));
+  return;
+ }
  const c=e.target.closest('[data-comment]');
- if(c){if(!sb||!user)return toast('Войди в PIXY, чтобы комментировать.');const body=prompt('Твой комментарий:');if(!body?.trim())return;const {error}=await sb.from('comments').insert({post_id:c.dataset.comment,author_id:user.id,body:body.trim().slice(0,1000)});if(error)return toast(error.message);toast('Комментарий опубликован');showPostComments(c.dataset.comment)}
+ if(c){openComments(c.dataset.comment);return}
 });
+
 let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,cameraFacing='environment',captureMode='photo',cameraBusy=false;
 function stopCamera(){if(recordTimer){clearTimeout(recordTimer);recordTimer=null}if(mediaRecorder?.state==='recording'){try{mediaRecorder.stop()}catch(_){}}if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null}const p=$('cameraPreview');if(p)p.srcObject=null}
 async function startCamera(){stopCamera();try{cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});const v=$('cameraPreview');v.srcObject=cameraStream;await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});await v.play();$('cameraHint').textContent='Камера включена'}catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}}
@@ -243,7 +315,24 @@ $('musicUploadBtn').onclick=async()=>{
 };
 
 $('editProfile').onclick=()=>{if(!user)return toast('Войди, чтобы редактировать профиль.');$('editName').value=profile?.display_name||'';$('editBio').value=profile?.bio||'';$('profileModal').classList.remove('hidden')};
-$('profileForm').onsubmit=async e=>{e.preventDefault();if(!sb||!user)return;let avatar_url=profile?.avatar_url||null;const file=$('avatarFile').files[0];if(file){if(!['image/jpeg','image/png','image/webp'].includes(file.type))return toast('Аватар: только JPG, PNG или WebP.');if(file.size>5*1024*1024)return toast('Аватар должен быть не больше 5 МБ.');const path=user.id+'/avatar-'+Date.now()+'.'+file.name.split('.').pop();const {error}=await sb.storage.from('pixy-media').upload(path,file,{upsert:true,contentType:file.type});if(error)return toast(error.message);avatar_url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl}const {data,error}=await sb.from('profiles').upsert({id:user.id,display_name:$('editName').value.trim(),bio:$('editBio').value.trim(),avatar_url}).select().single();if(error)return toast(error.message);profile=data;showApp();$('profileModal').classList.add('hidden');toast('Профиль сохранён')};
+$('profileForm').onsubmit=async e=>{
+ e.preventDefault();if(!sb||!user)return;
+ const form=$('profileForm'),button=form.querySelector('button[type="submit"]');button.disabled=true;button.textContent='Сохраняю…';
+ try{
+  let avatar_url=profile?.avatar_url||null;const file=$('avatarFile').files[0];
+  if(file){
+   if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Аватар: только JPG, PNG или WebP.');
+   if(file.size>5*1024*1024)throw new Error('Аватар должен быть не больше 5 МБ.');
+   const path=user.id+'/avatar-'+Date.now()+'.'+file.name.split('.').pop().toLowerCase();
+   const {error}=await sb.storage.from('pixy-media').upload(path,file,{upsert:true,contentType:file.type});if(error)throw error;
+   avatar_url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl;
+  }
+  const {data,error}=await sb.from('profiles').update({display_name:$('editName').value.trim(),bio:$('editBio').value.trim(),avatar_url}).eq('id',user.id).select('*').single();
+  if(error)throw error;
+  profile=data;$('profileModal').classList.add('hidden');$('avatarFile').value='';showApp();toast('Профиль сохранён');
+ }catch(err){toast('Не удалось сохранить профиль: '+(err.message||'ошибка'))}
+ finally{button.disabled=false;button.textContent='Сохранить профиль'}
+};
 $('editCover').onclick=()=>nav('shop');
 $('storyAdd').onclick=$('addStory').onclick=createStoryPicker;
 $('userSearch').oninput=async e=>{const q=e.target.value.trim().replace(/^@/,'').toLowerCase(),box=$('searchResults');if(!q){box.innerHTML='<div class="hint">Начни вводить username, чтобы найти людей в PIXY.</div>';return}if(!sb){box.innerHTML='<div class="hint">Поиск включится после подключения Supabase.</div>';return}const {data,error}=await sb.from('profiles').select('id,username,display_name,avatar_url').ilike('username',q+'%').limit(12);if(error){box.textContent=error.message;return}box.innerHTML=data.length?data.map(p=>'<div class="search-person"><div class="avatar avatar-blue">'+safe((p.display_name||'P').slice(0,1))+'</div><div><b>'+safe(p.display_name)+'</b><small>@'+safe(p.username)+'</small></div><button data-follow="'+p.id+'">Подписаться</button><button data-send-gift="'+p.id+'">🎁</button></div>').join(''):'<div class="hint">Никого не нашли.</div>'};
@@ -282,8 +371,23 @@ async function loadShop(){
  const [{data:bg,error:be},{data:gs,error:ge}]=await Promise.all([sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order').order('sort_order')]);
  if(be)toast(be.message);if(ge)toast(ge.message);
  $('backgroundShop').innerHTML=(bg||[]).map(x=>{const c=bgColors[x.id]||['#343047','#a78bfa'];return '<button class="shop-tile" data-background="'+safe(x.id)+'"><div class="swatch" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')"></div><small>'+safe(x.title)+'</small><b>'+(x.price_xion===0?'Бесплатно':x.price_xion+' pts')+'</b></button>'}).join('');
- $('giftShop').innerHTML=(gs||[]).map(g=>'<div class="gift-tile"><span>'+safe(g.emoji)+'</span><b>'+safe(g.title)+'</b><small>'+g.price_xion+' pts</small></div>').join('');
+ $('giftShop').innerHTML=(gs||[]).map(g=>'<button type="button" class="gift-tile" data-buy-gift="'+safe(g.id)+'"><span>'+safe(g.emoji)+'</span><b>'+safe(g.title)+'</b><small>'+g.price_xion+' pts · Купить и отправить</small></button>').join('');
 }
+$('giftShop').addEventListener('click',async e=>{
+ const b=e.target.closest('[data-buy-gift]');if(!b||!user)return;
+ const username=$('giftRecipient').value.trim().replace(/^@/,'').toLowerCase();
+ if(!username)return toast('Сначала введи username получателя.');
+ const {data:recipient,error:findError}=await sb.from('profiles').select('id,username').eq('username',username).maybeSingle();
+ if(findError)return toast(findError.message);
+ if(!recipient)return toast('Пользователь @'+username+' не найден.');
+ if(recipient.id===user.id)return toast('Нельзя отправить подарок самому себе.');
+ if(!confirm('Отправить подарок пользователю @'+recipient.username+'? Баллы спишутся после подтверждения.'))return;
+ b.disabled=true;
+ const {data,error}=await sb.rpc('send_virtual_gift',{recipient:recipient.id,gift_key:b.dataset.buyGift});
+ b.disabled=false;
+ if(error)return toast(error.message);
+ toast('Подарок отправлен! Остаток: '+data+' pts');loadWallet();
+});
 $('backgroundShop').addEventListener('click',async e=>{
  const b=e.target.closest('[data-background]');if(!b||!user)return;
  const {data,error}=await sb.rpc('apply_profile_background',{background_key:b.dataset.background});

@@ -6,7 +6,7 @@ const toast=(m)=>{const t=$('toast');t.textContent=m;t.classList.add('show');set
 const authStatus=(m,err=false)=>{$('authStatus').textContent=m;$('authStatus').style.color=err?'#ff9dba':'#9debd6'};
 const setAuth=(mode)=>{authMode=mode;['loginForm','signupForm','verifyForm','resetForm','newPasswordForm'].forEach(id=>$(id).classList.add('hidden'));$(mode+'Form').classList.remove('hidden');$('auth').classList.remove('hidden');$('app').classList.add('hidden');$('authStatus').textContent='';$('authSwitch').classList.toggle('hidden',mode==='verify'||mode==='reset'||mode==='newPassword');$('authTitle').textContent=mode==='signup'?'Создай свой мир.':mode==='verify'?'Проверь почту.':mode==='reset'?'Восстановим доступ.':mode==='newPassword'?'Новый пароль.':'С возвращением.';$('authSub').textContent=mode==='signup'?'Присоединяйся к PIXY.':mode==='verify'?'Мы отправили тебе код подтверждения.':mode==='reset'?'Отправим код для восстановления.':mode==='newPassword'?'Придумай новый надёжный пароль.':'Войди в свой мир PIXY.';$('authSwitch').innerHTML=mode==='signup'?'Уже есть аккаунт? <button id="showLogin">Войти</button>':mode==='login'?'Впервые здесь? <button id="showSignup">Создать аккаунт</button>':'<button id="backLogin">← Вернуться ко входу</button>';if($('showLogin'))$('showLogin').onclick=()=>setAuth('login');if($('showSignup'))$('showSignup').onclick=()=>setAuth('signup');if($('backLogin'))$('backLogin').onclick=()=>setAuth('login')};
 function showApp(){ $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandle').textContent=profile?.username?'@'+profile.username:'@username';$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent=''}loadFeed();loadStories()}
-function nav(view){document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));const target=$('view-'+view);if(target)target.classList.remove('hidden');document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин']};$('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';if(view==='profile'&&user)loadProfilePosts()}
+function nav(view){document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));const target=$('view-'+view);if(target)target.classList.remove('hidden');document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин']};$('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';if(view==='profile'&&user)loadProfilePosts();if(view==='messages'&&user)loadChatList()}
 document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c)$(c.dataset.close).classList.add('hidden')});
 $('showSignup').onclick=()=>setAuth('signup');
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return authStatus('Сервис входа пока недоступен.',true);const username=$('loginUsername').value.trim().toLowerCase();if(!/^[a-z0-9_.]{3,24}$/.test(username))return authStatus('Проверь username: 3–24 символа, латиница, цифры, точка или _.',true);authStatus('Входим в PIXY…');const {data,error}=await sb.auth.signInWithPassword({email:username+'@login.pixy.invalid',password:$('loginPassword').value});if(error)return authStatus('Не удалось войти. Проверь username и пароль.',true);user=data.user;await loadProfile();showApp()});
@@ -38,6 +38,57 @@ function createStoryPicker(){
  if(error)return toast(error.message);toast('История опубликована на 24 часа');loadStories();
  };input.click();
 }
+
+
+let activeConversation=null,activeChatUser=null,voiceRecorder=null,voiceChunks=[];
+async function loadChatList(){
+ if(!sb||!user)return;
+ const {data:members,error}=await sb.from('conversation_members').select('conversation_id').eq('user_id',user.id);
+ if(error){$('chatList').textContent=error.message;return}
+ const ids=(members||[]).map(x=>x.conversation_id);if(!ids.length){$('chatList').innerHTML='<p class="hint">Пока нет диалогов. Найди пользователя выше.</p>';return}
+ const {data:others}=await sb.from('conversation_members').select('conversation_id,user_id,profiles(username,display_name)').in('conversation_id',ids).neq('user_id',user.id);
+ $('chatList').innerHTML=(others||[]).map(x=>'<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.user_id+'" data-chat-name="'+safe(x.profiles?.username||'user')+'" style="display:block;width:100%;padding:12px;text-align:left;border:0;border-radius:12px;background:transparent;color:inherit">@'+safe(x.profiles?.username||'user')+'</button>').join('');
+}
+async function openChat(cid,uid,name){
+ activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;
+ const {data,error}=await sb.from('messages').select('id,sender_id,body,attachment_url,attachment_type,created_at').eq('conversation_id',cid).order('created_at',{ascending:true}).limit(100);
+ if(error){$('chatMessages').textContent=error.message;return}
+ $('chatMessages').innerHTML=(data||[]).map(m=>'<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:'+(m.sender_id===user.id?'var(--accent-soft)':'var(--surface)')+';max-width:85%;margin-left:'+(m.sender_id===user.id?'auto':'0')+'">'+(m.body?safe(m.body):'')+(m.attachment_type==='audio'&&m.attachment_url?'<audio controls src="'+safe(m.attachment_url)+'"></audio>':'')+'<small style="display:block;opacity:.6">'+new Date(m.created_at).toLocaleTimeString()+'</small></div>').join('')||'<p class="hint">Начни переписку!</p>';
+ $('chatMessages').scrollTop=$('chatMessages').scrollHeight;
+}
+$('chatList').addEventListener('click',e=>{const b=e.target.closest('[data-chat]');if(b)openChat(b.dataset.chat,b.dataset.chatUser,b.dataset.chatName)});
+$('chatSearch').oninput=async e=>{
+ const q=e.target.value.trim().replace(/^@/,'');const box=$('chatSearchResults');if(q.length<2){box.innerHTML='';return}
+ const {data,error}=await sb.from('profiles').select('id,username,display_name').ilike('username',q+'%').neq('id',user.id).limit(8);
+ if(error){box.textContent=error.message;return}
+ box.innerHTML=(data||[]).map(p=>'<button data-start-chat="'+p.id+'" data-start-name="'+safe(p.username)+'" style="display:block;width:100%;padding:9px;text-align:left">@'+safe(p.username)+'</button>').join('');
+};
+$('chatSearchResults').addEventListener('click',async e=>{
+ const b=e.target.closest('[data-start-chat]');if(!b)return;
+ const {data,error}=await sb.rpc('create_direct_conversation',{other_user:b.dataset.startChat});
+ if(error)return toast('Не удалось открыть чат: '+error.message);
+ $('chatSearch').value='';$('chatSearchResults').innerHTML='';await loadChatList();const {data:members}=await sb.from('conversation_members').select('user_id').eq('conversation_id',data).neq('user_id',user.id);await openChat(data,members?.[0]?.user_id,b.dataset.startName);
+});
+$('chatSendForm').onsubmit=async e=>{
+ e.preventDefault();const body=$('chatMessageInput').value.trim();if(!activeConversation||!body)return;
+ const {error}=await sb.from('messages').insert({conversation_id:activeConversation,sender_id:user.id,body});
+ if(error)return toast(error.message);$('chatMessageInput').value='';await openChat(activeConversation,activeChatUser,$('chatTitle').textContent.replace('@',''));
+};
+$('voiceRecord').onclick=async()=>{
+ if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)return toast('Запись голосовых не поддерживается этим браузером.');
+ if(voiceRecorder?.state==='recording'){voiceRecorder.stop();$('voiceRecord').textContent='🎙';return}
+ try{
+ const stream=await navigator.mediaDevices.getUserMedia({audio:true});voiceChunks=[];voiceRecorder=new MediaRecorder(stream);
+ voiceRecorder.ondataavailable=e=>{if(e.data.size)voiceChunks.push(e.data)};
+ voiceRecorder.onstop=async()=>{
+ stream.getTracks().forEach(t=>t.stop());if(!activeConversation)return toast('Сначала открой диалог.');
+ const blob=new Blob(voiceChunks,{type:voiceRecorder.mimeType||'audio/webm'});if(blob.size>10*1024*1024)return toast('Голосовое слишком большое (лимит 10 МБ).');
+ const path=user.id+'/voice-'+crypto.randomUUID()+'.webm';const {error:upErr}=await sb.storage.from('pixy-media').upload(path,blob,{contentType:blob.type});if(upErr)return toast(upErr.message);
+ const url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl;
+ const {error}=await sb.from('messages').insert({conversation_id:activeConversation,sender_id:user.id,body:'',attachment_url:url,attachment_type:'audio'});if(error)return toast(error.message);await openChat(activeConversation,activeChatUser,$('chatTitle').textContent.replace('@',''));toast('Голосовое отправлено');
+ };voiceRecorder.start();$('voiceRecord').textContent='■';toast('Запись началась. Нажми ■ для отправки.');
+ }catch(err){toast('Нет разрешения на микрофон.')}
+};
 
 function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 

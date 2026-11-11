@@ -26,7 +26,42 @@ function nav(view){document.querySelectorAll('.view').forEach(x=>x.classList.add
 document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c)$(c.dataset.close).classList.add('hidden')});
 $('showSignup').onclick=()=>setAuth('signup');
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return authStatus('Сервис входа пока недоступен.',true);const username=$('loginUsername').value.trim().toLowerCase();if(!/^[a-z0-9_.]{3,24}$/.test(username))return authStatus('Проверь username: 3–24 символа, латиница, цифры, точка или _.',true);authStatus('Входим в PIXY…');const {data,error}=await sb.auth.signInWithPassword({email:username+'@login.pixy.invalid',password:$('loginPassword').value});if(error)return authStatus('Не удалось войти. Проверь username и пароль.',true);user=data.user;await loadProfile();showApp()});
-$('signupForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return authStatus('Сервис регистрации пока недоступен.',true);const username=$('signupUsername').value.trim().toLowerCase(),name=$('signupName').value.trim(),password=$('signupPassword').value,passwordConfirm=$('signupPasswordConfirm').value;if(!/^[a-z0-9_.]{3,24}$/.test(username))return authStatus('Username: 3–24 символа, латиница, цифры, точка или _.',true);if(password.length<8)return authStatus('Пароль должен содержать минимум 8 символов.',true);if(password!==passwordConfirm)return authStatus('Пароли не совпадают.',true);const {data:existing,error:lookupError}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();if(lookupError)return authStatus('Не удалось проверить username. Попробуй ещё раз.',true);if(existing)return authStatus('Этот username уже занят. Выбери другой.',true);authStatus('Создаём аккаунт…');const {data,error}=await sb.auth.signUp({email:username+'@login.pixy.invalid',password,options:{data:{display_name:name,username}}});if(error)return authStatus(error.message,true);if(!data.session){return authStatus('Регистрация создана, но Supabase всё ещё требует подтверждение email. Нужно один раз отключить Confirm email в настройках Auth.',true)}user=data.user;await loadProfile();showApp();toast('Добро пожаловать в PIXY!')});
+$('signupForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const form=$('signupForm'),button=form.querySelector('button[type="submit"]');
+ if(!sb)return authStatus('Сервис регистрации недоступен. Обнови страницу и попробуй снова.',true);
+ if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent='Создаём аккаунт…'}
+ try{
+  const username=$('signupUsername').value.trim().toLowerCase();
+  const name=$('signupName').value.trim();
+  const password=$('signupPassword').value;
+  const passwordConfirm=$('signupPasswordConfirm').value;
+  if(!/^[a-z0-9_.]{3,24}$/.test(username))return authStatus('Username: 3–24 символа, латиница, цифры, точка или _.',true);
+  if(!name)return authStatus('Введи имя.',true);
+  if(password.length<8)return authStatus('Пароль должен содержать минимум 8 символов.',true);
+  if(password!==passwordConfirm)return authStatus('Пароли не совпадают.',true);
+  authStatus('Проверяем username…');
+  const {data:existing,error:lookupError}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
+  if(lookupError)throw new Error('Не удалось проверить username: '+lookupError.message);
+  if(existing)return authStatus('Этот username уже занят. Выбери другой.',true);
+  authStatus('Отправляем регистрацию в PIXY…');
+  const {data,error}=await sb.auth.signUp({email:username+'@login.pixy.invalid',password,options:{data:{display_name:name,username}}});
+  if(error)throw error;
+  if(!data.session){
+   authStatus('Supabase создал запрос регистрации, но требует подтверждение email. Адрес @login.pixy.invalid не принимает письма. Владелец проекта должен выключить Authentication → Providers → Email → Confirm email, иначе вход не заработает.',true);
+   return;
+  }
+  user=data.user;
+  await loadProfile();
+  showApp();
+  toast('Добро пожаловать в PIXY!');
+ }catch(error){
+  console.error('PIXY signup error:',error);
+  authStatus(error?.message||'Не удалось создать аккаунт. Попробуй ещё раз.',true);
+ }finally{
+  if(button){button.disabled=false;button.textContent=button.dataset.originalText||'Создать аккаунт ↗'}
+ }
+});
 $('verifyForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;authStatus('Проверяем код…');const {data,error}=await sb.auth.verifyOtp({email:pendingEmail,token:$('verifyCode').value.trim(),type:verifyPurpose});if(error)return authStatus(error.message,true);if(verifyPurpose==='recovery'){setAuth('newPassword');authStatus('Почта подтверждена. Теперь задай новый пароль.');return}user=data.user;await loadProfile();showApp();toast('Добро пожаловать в PIXY!')});
 $('resendCode').onclick=async()=>{if(!sb||!pendingEmail)return;const result=verifyPurpose==='recovery'?await sb.auth.resetPasswordForEmail(pendingEmail):await sb.auth.resend({type:'signup',email:pendingEmail});authStatus(result.error?result.error.message:'Новый код отправлен.',!!result.error)};
 $('resetForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;pendingEmail=$('resetEmail').value.trim();verifyPurpose='recovery';const {error}=await sb.auth.resetPasswordForEmail(pendingEmail);if(error)return authStatus(error.message,true);setAuth('verify');authStatus('Код восстановления отправлен на '+pendingEmail)});

@@ -109,7 +109,7 @@ alter table public.conversations enable row level security;
 alter table public.conversation_members enable row level security;
 alter table public.messages enable row level security;
 create policy "Members can read their conversations" on public.conversations for select to authenticated using (exists(select 1 from public.conversation_members m where m.conversation_id=id and m.user_id=(select auth.uid())));
-create policy "Members can read membership" on public.conversation_members for select to authenticated using (user_id=(select auth.uid()) or exists(select 1 from public.conversation_members mine where mine.conversation_id=conversation_id and mine.user_id=(select auth.uid())));
+create policy "Users can read their own membership rows" on public.conversation_members for select to authenticated using (user_id=(select auth.uid()));
 create policy "Members can read messages" on public.messages for select to authenticated using (exists(select 1 from public.conversation_members m where m.conversation_id=conversation_id and m.user_id=(select auth.uid())));
 create policy "Members can send messages" on public.messages for insert to authenticated with check ((select auth.uid())=sender_id and exists(select 1 from public.conversation_members m where m.conversation_id=conversation_id and m.user_id=(select auth.uid())));
 

@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);let user=null,profile=null,pendingEmail=
 const toast=(m)=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)};
 const authStatus=(m,err=false)=>{$('authStatus').textContent=m;$('authStatus').style.color=err?'#ff9dba':'#9debd6'};
 const setAuth=(mode)=>{authMode=mode;['loginForm','signupForm','verifyForm','resetForm','newPasswordForm'].forEach(id=>$(id).classList.add('hidden'));$(mode+'Form').classList.remove('hidden');$('auth').classList.remove('hidden');$('app').classList.add('hidden');$('authStatus').textContent='';$('authSwitch').classList.toggle('hidden',mode==='verify'||mode==='reset'||mode==='newPassword');$('authTitle').textContent=mode==='signup'?'Создай свой мир.':mode==='verify'?'Проверь почту.':mode==='reset'?'Восстановим доступ.':mode==='newPassword'?'Новый пароль.':'С возвращением.';$('authSub').textContent=mode==='signup'?'Присоединяйся к PIXY.':mode==='verify'?'Мы отправили тебе код подтверждения.':mode==='reset'?'Отправим код для восстановления.':mode==='newPassword'?'Придумай новый надёжный пароль.':'Войди в свой мир PIXY.';$('authSwitch').innerHTML=mode==='signup'?'Уже есть аккаунт? <button id="showLogin">Войти</button>':mode==='login'?'Впервые здесь? <button id="showSignup">Создать аккаунт</button>':'<button id="backLogin">← Вернуться ко входу</button>';if($('showLogin'))$('showLogin').onclick=()=>setAuth('login');if($('showSignup'))$('showSignup').onclick=()=>setAuth('signup');if($('backLogin'))$('backLogin').onclick=()=>setAuth('login')};
-function showApp(){ $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandle').textContent=profile?.username?'@'+profile.username:'@username';$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent=''}loadFeed();loadStories()}
+function showApp(){ $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandle').textContent=profile?.username?'@'+profile.username:'@username';$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent=''}loadFeed();loadStories();loadSocialStats()}
 function nav(view){document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));const target=$('view-'+view);if(target)target.classList.remove('hidden');document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин']};$('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';if(view==='profile'&&user)loadProfilePosts();if(view==='messages'&&user)loadChatList()}
 document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c)$(c.dataset.close).classList.add('hidden')});
 $('showSignup').onclick=()=>setAuth('signup');
@@ -90,13 +90,30 @@ $('voiceRecord').onclick=async()=>{
  }catch(err){toast('Нет разрешения на микрофон.')}
 };
 
+
+async function loadSocialStats(){
+ if(!sb||!user)return;
+ const [{count:followers},{count:following}] = await Promise.all([
+ sb.from('follows').select('*',{count:'exact',head:true}).eq('following_id',user.id),
+ sb.from('follows').select('*',{count:'exact',head:true}).eq('follower_id',user.id)
+ ]);
+ const nodes=document.querySelectorAll('[data-stat="followers"],[data-stat="following"]');
+ nodes.forEach(n=>n.textContent=n.dataset.stat==='followers'?(followers||0):(following||0));
+}
+async function showPostComments(postId){
+ const {data,error}=await sb.from('comments').select('body,created_at,profiles(username)').eq('post_id',postId).order('created_at',{ascending:true}).limit(50);
+ if(error)return toast(error.message);
+ const lines=(data||[]).map(x=>'@'+(x.profiles?.username||'user')+': '+x.body);
+ alert(lines.length?lines.join('\\n'):'Пока нет комментариев.');
+}
+
 function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 $('feed').addEventListener('click',async e=>{
  const b=e.target.closest('[data-like]');
  if(b){if(!sb||!user)return toast('Войди в PIXY, чтобы ставить реакции.');const {error}=await sb.from('reactions').upsert({post_id:b.dataset.like,user_id:user.id,reaction:'like'},{onConflict:'post_id,user_id'});if(error)toast(error.message);else{b.innerHTML='♥ <span>Тебе нравится</span>';b.style.color='#f58ac7'}return}
  const c=e.target.closest('[data-comment]');
- if(c){if(!sb||!user)return toast('Войди в PIXY, чтобы комментировать.');const body=prompt('Твой комментарий:');if(!body?.trim())return;const {error}=await sb.from('comments').insert({post_id:c.dataset.comment,author_id:user.id,body:body.trim().slice(0,1000)});if(error)return toast(error.message);toast('Комментарий опубликован')}
+ if(c){if(!sb||!user)return toast('Войди в PIXY, чтобы комментировать.');const body=prompt('Твой комментарий:');if(!body?.trim())return;const {error}=await sb.from('comments').insert({post_id:c.dataset.comment,author_id:user.id,body:body.trim().slice(0,1000)});if(error)return toast(error.message);toast('Комментарий опубликован');showPostComments(c.dataset.comment)}
 });
 $('openComposer').onclick=$('bannerCreate').onclick=()=>{if(!user)return toast('Сначала войди в PIXY.');$('composerModal').classList.remove('hidden')};
 $('videoCreate').onclick=()=>{$('composerModal').classList.remove('hidden');$('postFile').accept='video/*';toast('Выбери видео не длиннее 60 секунд.')};

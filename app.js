@@ -40,19 +40,24 @@ function createStoryPicker(){
 }
 
 
-let activeConversation=null,activeChatUser=null,voiceRecorder=null,voiceChunks=[];
+let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
 async function loadChatList(){
  if(!sb||!user)return;
  const {data,error}=await sb.rpc('list_my_direct_chats');
  if(error){$('chatList').textContent=error.message;return}
  $('chatList').innerHTML=(data||[]).map(x=>'<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.other_user_id+'" data-chat-name="'+safe(x.username||'user')+'" style="display:block;width:100%;padding:12px;text-align:left;border:0;border-radius:12px;background:transparent;color:inherit">@'+safe(x.username||'user')+'</button>').join('')||'<p class="hint">Пока нет диалогов. Найди пользователя выше.</p>';
 }
-async function openChat(cid,uid,name){
- activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;
+async function refreshChatMessages(cid){
  const {data,error}=await sb.from('messages').select('id,sender_id,body,attachment_url,attachment_type,created_at').eq('conversation_id',cid).order('created_at',{ascending:true}).limit(100);
  if(error){$('chatMessages').textContent=error.message;return}
  $('chatMessages').innerHTML=(data||[]).map(m=>'<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:'+(m.sender_id===user.id?'var(--accent-soft)':'var(--surface)')+';max-width:85%;margin-left:'+(m.sender_id===user.id?'auto':'0')+'">'+(m.body?safe(m.body):'')+(m.attachment_type==='audio'&&m.attachment_url?'<audio controls src="'+safe(m.attachment_url)+'"></audio>':'')+'<small style="display:block;opacity:.6">'+new Date(m.created_at).toLocaleTimeString()+'</small></div>').join('')||'<p class="hint">Начни переписку!</p>';
  $('chatMessages').scrollTop=$('chatMessages').scrollHeight;
+}
+async function openChat(cid,uid,name){
+ activeConversation=cid;activeChatUser=uid;$('chatTitle').textContent='@'+name;
+ if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}
+ await refreshChatMessages(cid);
+ activeChatChannel=sb.channel('pixy-chat-'+cid).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+cid},payload=>{if(activeConversation===cid)refreshChatMessages(cid)}).subscribe();
 }
 $('chatList').addEventListener('click',e=>{const b=e.target.closest('[data-chat]');if(b)openChat(b.dataset.chat,b.dataset.chatUser,b.dataset.chatName)});
 $('chatSearch').oninput=async e=>{

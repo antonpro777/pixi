@@ -293,20 +293,141 @@ $('feed').addEventListener('click',async e=>{
 });
 
 let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,cameraFacing='environment',captureMode='photo',cameraBusy=false;
-function stopCamera(){if(recordTimer){clearTimeout(recordTimer);recordTimer=null}if(mediaRecorder?.state==='recording'){try{mediaRecorder.stop()}catch(_){}}if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null}const p=$('cameraPreview');if(p)p.srcObject=null}
-async function startCamera(){stopCamera();try{cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});const v=$('cameraPreview');v.srcObject=cameraStream;await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});await v.play();$('cameraHint').textContent='Камера включена'}catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}}
-function setCaptureMode(m){captureMode=m;$('postMode').value=m==='video'?'video':'single';$('capturePhotoMode').classList.toggle('active',m==='photo');$('captureVideoMode').classList.toggle('active',m==='video');$('cameraHint').textContent=m==='video'?'Видео · до 20 секунд':'Фото'}
-function openComposer(){if(!user)return toast('Сначала войди в PIXY.');$('composerModal').classList.remove('hidden');$('postFile').value='';selectedFiles=[];selectedFile=null;$('filePreview').innerHTML='';$('postCaption').value='';$('postMusic').value='';$('postForm').querySelector('button[type=submit]').disabled=false;setCaptureMode('photo');loadMusicLibrary();startCamera()}
-$('openComposer').onclick=$('bannerCreate').onclick=()=>openComposer();$('mobileCreateBtn').onclick=()=>openComposer();$('videoCreate').onclick=()=>openComposer();
+let selectedMusicId='',pickerMusicId='',recordAudioContext=null,recordMusicElement=null;
+function stopRecordingAudio(){
+ if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.currentTime=0}catch(_){}recordMusicElement=null}
+ if(recordAudioContext){const ctx=recordAudioContext;recordAudioContext=null;try{ctx.close()}catch(_){}}
+}
+function stopCamera(){
+ if(recordTimer){clearTimeout(recordTimer);recordTimer=null}
+ if(mediaRecorder?.state==='recording'){try{mediaRecorder.stop()}catch(_){}}
+ stopRecordingAudio();
+ if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null}
+ const p=$('cameraPreview');if(p)p.srcObject=null;
+}
+async function startCamera(){
+ stopCamera();
+ try{
+  cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});
+  const v=$('cameraPreview');v.srcObject=cameraStream;
+  await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});
+  await v.play();$('cameraHint').textContent='Камера включена';
+ }catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}
+}
+function setCaptureMode(m){
+ captureMode=m;$('postMode').value=m==='video'?'video':'single';
+ $('capturePhotoMode').classList.toggle('active',m==='photo');$('captureVideoMode').classList.toggle('active',m==='video');
+ $('cameraHint').textContent=m==='video'?'Видео · до 20 секунд':'Фото';
+}
+function openComposer(){
+ if(!user)return toast('Сначала войди в PIXY.');
+ $('composerModal').classList.remove('hidden');$('postFile').value='';selectedFiles=[];selectedFile=null;
+ $('filePreview').innerHTML='';$('cameraPublishPanel').classList.add('hidden');$('postCaption').value='';
+ $('postMusic').value=selectedMusicId||'';$('postForm').querySelector('button[type=submit]').disabled=false;
+ setCaptureMode('photo');loadMusicLibrary();startCamera();
+}
+$('openComposer').onclick=$('bannerCreate').onclick=()=>openComposer();$('mobileCreateBtn').onclick=()=>openComposer();$('videoCreate').onclick=()=>{openComposer();setCaptureMode('video')};
 $('capturePhotoMode').onclick=()=>setCaptureMode('photo');$('captureVideoMode').onclick=()=>setCaptureMode('video');
-$('cameraFlipBtn').onclick=async()=>{cameraFacing=cameraFacing==='environment'?'user':'environment';await startCamera()};
+async function flipCamera(){cameraFacing=cameraFacing==='environment'?'user':'environment';await startCamera()}
+$('cameraFlipBtn').onclick=flipCamera;$('cameraFlipBottom').onclick=flipCamera;
 $('galleryPickBtn').onclick=()=>{stopCamera();$('postFile').multiple=true;$('postFile').accept='image/*,video/mp4,video/webm,video/quicktime';$('postFile').click()};
-function setComposerFiles(files,m){selectedFiles=files;selectedFile=files[0]||null;$('postMode').value=m;const p=$('filePreview');p.innerHTML='';files.forEach(f=>{const u=URL.createObjectURL(f),el=document.createElement(f.type.startsWith('video/')?'video':'img');el.src=u;if(el.tagName==='VIDEO'){el.controls=true;el.playsInline=true}p.append(el)});$('cameraHint').textContent=m==='carousel'?'Выбрано '+files.length+' фото':m==='video'?'Видео готово':'Фото готово'}
+function setComposerFiles(files,m){
+ selectedFiles=files;selectedFile=files[0]||null;$('postMode').value=m;
+ const p=$('filePreview');p.innerHTML='';
+ files.forEach(f=>{const u=URL.createObjectURL(f),el=document.createElement(f.type.startsWith('video/')?'video':'img');el.src=u;if(el.tagName==='VIDEO'){el.controls=true;el.playsInline=true}p.append(el)});
+ $('cameraPublishPanel').classList.remove('hidden');
+ $('cameraHint').textContent=m==='carousel'?'Выбрано '+files.length+' фото':m==='video'?'Видео готово':'Фото готово';
+}
 function readVideoDuration(f){return new Promise(resolve=>{const u=URL.createObjectURL(f),v=document.createElement('video');let done=false;const finish=d=>{if(done)return;done=true;URL.revokeObjectURL(u);v.removeAttribute('src');v.load();resolve(d)};v.preload='metadata';v.onloadedmetadata=()=>finish(Number.isFinite(v.duration)?v.duration:null);v.onerror=()=>finish(null);v.src=u;v.load();setTimeout(()=>finish(null),5000)})}
-$('postFile').onchange=async e=>{const fs=Array.from(e.target.files||[]);if(!fs.length)return;const vid=fs.length===1&&fs[0].type.startsWith('video/'),imgs=fs.every(f=>f.type.startsWith('image/'));if(!vid&&!imgs){toast('Выбери одно видео или фотографии.');e.target.value='';return}if(imgs&&fs.length>15){toast('Можно выбрать до 15 фото.');e.target.value='';return}if(fs.some(f=>f.size>50*1024*1024)){toast('Файл больше 50 МБ.');e.target.value='';return}if(vid){const d=await readVideoDuration(fs[0]);if(d!==null&&d>20.05){toast('Видео должно быть не длиннее 20 секунд.');e.target.value='';return}setComposerFiles(fs,'video')}else setComposerFiles(fs,fs.length>1?'carousel':'single')};
-$('captureShutter').onclick=async()=>{if(cameraBusy)return;cameraBusy=true;try{if(captureMode==='photo'){const v=$('cameraPreview');if(!cameraStream||!v.videoWidth)await startCamera();if(!v.videoWidth)throw Error('Камера ещё не готова.');const c=$('cameraCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.93));if(!b)throw Error('Не удалось сделать фото.');setComposerFiles([new File([b],'pixy-photo.jpg',{type:'image/jpeg'})],'single');$('captureShutter').classList.add('photo-flash');setTimeout(()=>$('captureShutter').classList.remove('photo-flash'),180)}else if(mediaRecorder?.state==='recording'){mediaRecorder.stop();$('cameraHint').textContent='Сохраняю видео…'}else{if(!cameraStream)await startCamera();if(!cameraStream)throw Error('Не удалось включить камеру.');const mt=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));mediaRecorder=new MediaRecorder(cameraStream,mt?{mimeType:mt}:undefined);recordedChunks=[];mediaRecorder.ondataavailable=e=>{if(e.data?.size)recordedChunks.push(e.data)};mediaRecorder.onstop=()=>{clearTimeout(recordTimer);const b=new Blob(recordedChunks,{type:mediaRecorder.mimeType||'video/webm'});if(b.size){setComposerFiles([new File([b],'pixy-video.webm',{type:'video/webm'})],'video');$('cameraHint').textContent='Видео записано · можно опубликовать'}$('captureShutter').classList.remove('recording')};mediaRecorder.start(200);$('captureShutter').classList.add('recording');$('cameraHint').textContent='Идёт запись · максимум 20 секунд';recordTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop()},20000)}}catch(err){toast(err.message||'Ошибка камеры.')}finally{cameraBusy=false}};
-async function loadMusicLibrary(){if(!sb)return;const {data,error}=await sb.from('music_tracks').select('id,title,artist,audio_url').eq('active',true).order('created_at',{ascending:false});if(error){console.warn(error);return}availableMusic=data||[];const s=$('postMusic'),old=s.value;s.innerHTML='<option value="">Без музыки</option>'+availableMusic.map(t=>'<option value="'+t.id+'">'+safe(t.title)+' — '+safe(t.artist)+'</option>').join('');if(availableMusic.some(t=>t.id===old))s.value=old}
-$('postForm').onsubmit=async e=>{e.preventDefault();if(!sb||!user)return toast('Войди в PIXY.');const m=$('postMode').value,fs=selectedFiles.length?selectedFiles:(selectedFile?[selectedFile]:[]);if(!fs.length)return toast('Сними фото или видео либо выбери файлы в галерее.');if(m==='carousel'&&(fs.length<2||fs.length>15))return toast('Слайд-шоу: от 2 до 15 фото.');if(fs.some(f=>f.size>50*1024*1024))return toast('Максимум 50 МБ на файл.');if(m==='video'){const d=await readVideoDuration(fs[0]);if(d!==null&&d>20.05)return toast('Видео должно быть не длиннее 20 секунд.')}const btn=$('postForm').querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Загружаю…';try{const uploaded=[];for(const f of fs){const ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=user.id+'/'+crypto.randomUUID()+'.'+ext;const {error:ue}=await sb.storage.from('pixy-media').upload(path,f,{contentType:f.type,cacheControl:'3600',upsert:false});if(ue)throw ue;uploaded.push({url:sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl,type:m==='video'?'video':'image'})}const t=availableMusic.find(x=>x.id===$('postMusic').value)||null;const {error}=await sb.from('posts').insert({author_id:user.id,caption:$('postCaption').value.trim(),media_url:uploaded[0].url,media_type:m==='video'?'video':'image',media_items:m==='video'?[]:uploaded,music_url:t?.audio_url||null,music_title:t?.title||null,visibility:'public'});if(error)throw error;stopCamera();$('composerModal').classList.add('hidden');$('postCaption').value='';$('postFile').value='';$('filePreview').innerHTML='';$('postMusic').value='';selectedFile=null;selectedFiles=[];toast('Публикация добавлена!');nav('home');loadFeed()}catch(err){console.error('PIXY publish error:',err);toast(err.message||'Ошибка публикации')}finally{btn.disabled=false;btn.textContent='Опубликовать'}};
+$('postFile').onchange=async e=>{
+ const fs=Array.from(e.target.files||[]);if(!fs.length)return;
+ const vid=fs.length===1&&fs[0].type.startsWith('video/'),imgs=fs.every(f=>f.type.startsWith('image/'));
+ if(!vid&&!imgs){toast('Выбери одно видео или фотографии.');e.target.value='';return}
+ if(imgs&&fs.length>15){toast('Можно выбрать до 15 фото.');e.target.value='';return}
+ if(fs.some(f=>f.size>50*1024*1024)){toast('Файл больше 50 МБ.');e.target.value='';return}
+ if(vid){const d=await readVideoDuration(fs[0]);if(d!==null&&d>20.05){toast('Видео должно быть не длиннее 20 секунд.');e.target.value='';return}setComposerFiles(fs,'video')}
+ else setComposerFiles(fs,fs.length>1?'carousel':'single');
+};
+async function makeRecordingStream(){
+ const selected=availableMusic.find(t=>t.id===selectedMusicId);
+ if(!selected)return cameraStream;
+ const AudioCtx=window.AudioContext||window.webkitAudioContext;
+ if(!AudioCtx||!window.MediaStreamAudioDestinationNode)throw new Error('Этот браузер не поддерживает запись музыки вместе с видео.');
+ const ctx=new AudioCtx();recordAudioContext=ctx;await ctx.resume();
+ const mixed=ctx.createMediaStreamDestination();
+ const micTracks=cameraStream.getAudioTracks();
+ if(micTracks.length){const mic=new MediaStream(micTracks);ctx.createMediaStreamSource(mic).connect(mixed)}
+ const music=new Audio();music.crossOrigin='anonymous';music.src=selected.audio_url;music.loop=true;music.preload='auto';
+ const source=ctx.createMediaElementSource(music);source.connect(mixed);source.connect(ctx.destination);
+ recordMusicElement=music;
+ try{await music.play()}catch(err){stopRecordingAudio();throw new Error('Не удалось запустить выбранный трек. Попробуй выбрать его ещё раз.')}
+ return new MediaStream([...cameraStream.getVideoTracks(),...mixed.stream.getAudioTracks()]);
+}
+$('captureShutter').onclick=async()=>{
+ if(cameraBusy)return;cameraBusy=true;
+ try{
+  if(captureMode==='photo'){
+   const v=$('cameraPreview');if(!cameraStream||!v.videoWidth)await startCamera();if(!v.videoWidth)throw Error('Камера ещё не готова.');
+   const c=$('cameraCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
+   const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.93));if(!b)throw Error('Не удалось сделать фото.');
+   setComposerFiles([new File([b],'pixy-photo.jpg',{type:'image/jpeg'})],'single');
+   $('captureShutter').classList.add('photo-flash');setTimeout(()=>$('captureShutter').classList.remove('photo-flash'),180);
+  }else if(mediaRecorder?.state==='recording'){
+   mediaRecorder.stop();$('cameraHint').textContent='Сохраняю видео и музыку…';
+  }else{
+   if(!cameraStream)await startCamera();if(!cameraStream)throw Error('Не удалось включить камеру.');
+   const recordStream=await makeRecordingStream();
+   const mt=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
+   mediaRecorder=new MediaRecorder(recordStream,mt?{mimeType:mt}:undefined);recordedChunks=[];
+   mediaRecorder.ondataavailable=e=>{if(e.data?.size)recordedChunks.push(e.data)};
+   mediaRecorder.onstop=()=>{
+    clearTimeout(recordTimer);recordTimer=null;stopRecordingAudio();
+    const b=new Blob(recordedChunks,{type:mediaRecorder.mimeType||'video/webm'});
+    if(b.size){setComposerFiles([new File([b],'pixy-video.webm',{type:'video/webm'})],'video');$('cameraHint').textContent='Видео с музыкой готово к публикации'}
+    $('captureShutter').classList.remove('recording');
+   };
+   mediaRecorder.start(200);$('captureShutter').classList.add('recording');
+   $('cameraHint').textContent=selectedMusicId?'Идёт запись · музыка записывается в видео':'Идёт запись · максимум 20 секунд';
+   recordTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop()},20000);
+  }
+ }catch(err){toast(err.message||'Ошибка камеры.')}finally{cameraBusy=false}
+};
+async function loadMusicLibrary(){
+ if(!sb)return;
+ const {data,error}=await sb.from('music_tracks').select('id,title,artist,audio_url').eq('active',true).order('created_at',{ascending:false});
+ if(error){console.warn(error);$('soundTrackList').innerHTML='<p class="sound-empty">Не удалось загрузить музыку.</p>';return}
+ availableMusic=data||[];
+ const s=$('postMusic'),old=selectedMusicId;s.innerHTML='<option value="">Без музыки</option>'+availableMusic.map(t=>'<option value="'+t.id+'">'+safe(t.title)+' — '+safe(t.artist)+'</option>').join('');
+ if(availableMusic.some(t=>t.id===old))s.value=old;else{selectedMusicId='';s.value=''}
+ renderSoundTracks();
+}
+function renderSoundTracks(){
+ const list=$('soundTrackList');
+ if(!availableMusic.length){list.innerHTML='<p class="sound-empty">Пока нет доступных треков.</p>';return}
+ list.innerHTML=availableMusic.map(t=>'<button type="button" class="sound-track '+(t.id===pickerMusicId?'selected':'')+'" data-pick-track="'+safe(t.id)+'"><span class="sound-track-icon">♫</span><span><b>'+safe(t.title)+'</b><small>'+safe(t.artist||'PIXY Music')+'</small></span><i>'+(t.id===pickerMusicId?'✓':'▶')+'</i></button>').join('');
+}
+$('cameraSoundPill').onclick=()=>{$('soundPicker').classList.remove('hidden');pickerMusicId=selectedMusicId;renderSoundTracks()};
+$('soundTrackList').onclick=e=>{
+ const b=e.target.closest('[data-pick-track]');if(!b)return;
+ pickerMusicId=b.dataset.pickTrack;renderSoundTracks();
+ const track=availableMusic.find(t=>t.id===pickerMusicId);if(!track)return;
+ const preview=$('musicPickerPreview');if(preview){preview.pause();preview.src=track.audio_url;preview.currentTime=0;preview.play().catch(()=>{})}
+};
+$('soundUseBtn').onclick=()=>{
+ if(!pickerMusicId)return toast('Выбери трек.');
+ selectedMusicId=pickerMusicId;$('postMusic').value=selectedMusicId;
+ const t=availableMusic.find(x=>x.id===selectedMusicId);
+ $('cameraSoundLabel').textContent=t?t.title:'Добавить звук';
+ $('cameraSoundPill').classList.toggle('has-track',!!t);
+ const preview=$('musicPickerPreview');if(preview){preview.pause();preview.removeAttribute('src')}
+ $('soundPicker').classList.add('hidden');
+};
+$('soundRemoveBtn').onclick=()=>{
+ selectedMusicId='';pickerMusicId='';$('postMusic').value='';$('cameraSoundLabel').textContent='Добавить звук';$('cameraSoundPill').classList.remove('has-track');
+ const preview=$('musicPickerPreview');if(preview){preview.pause();preview.removeAttribute('src')}
+ $('soundPicker').classList.add('hidden');
+};
+document.addEventListener('click',e=>{if(e.target.closest('[data-sound-close]')){$('soundPicker').classList.add('hidden');const preview=$('musicPickerPreview');if(preview){preview.pause();preview.removeAttribute('src')}}});
 $('feed').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-carousel]');if(b){b.dataset.pointerStart=String(e.clientX);try{b.setPointerCapture(e.pointerId)}catch(_){}}});
 $('feed').addEventListener('pointerup',e=>{const b=e.target.closest('[data-carousel]');if(!b)return;const x=Number(b.dataset.pointerStart);delete b.dataset.pointerStart;if(!Number.isFinite(x))return;const dx=e.clientX-x;if(Math.abs(dx)<38)return;let a=[];try{a=JSON.parse(b.dataset.items||'[]')}catch(_){}if(!a.length)return;const i=(Number(b.dataset.index||0)+(dx<0?1:-1)+a.length)%a.length;b.dataset.index=String(i);const im=b.querySelector('[data-carousel-image]');im.style.transform='translateX('+(dx<0?'24px':'-24px')+')';im.style.opacity='.35';requestAnimationFrame(()=>{im.src=a[i].url;im.alt='Фото '+(i+1)+' из '+a.length;im.style.transform='translateX(0)';im.style.opacity='1'});const count=b.querySelector('[data-carousel-count]');if(count)count.textContent=(i+1)+' / '+a.length;b.dataset.swiped='1'});
 $('feed').addEventListener('click',async e=>{const b=e.target.closest('[data-carousel]');if(!b)return;if(b.dataset.swiped==='1'){delete b.dataset.swiped;return}const a=b.parentElement.querySelector('[data-carousel-music]');if(!a)return;const overlay=b.querySelector('[data-carousel-toggle]');if(a.paused){try{await a.play();b.classList.add('music-playing');if(overlay)overlay.textContent='Нажмите, чтобы остановить'}catch(_){}}else{a.pause();b.classList.remove('music-playing');if(overlay)overlay.textContent='Нажмите, чтобы включить'}});

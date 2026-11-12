@@ -281,8 +281,17 @@ async function ensureCallChannel(cid=activeConversation){
 async function initIncomingCallListeners(){
  if(!sb||!user)return;
  if(callInboxChannel)try{await sb.removeChannel(callInboxChannel)}catch(_){}
- callInboxChannel=sb.channel('pixy-call-inbox-'+user.id,{config:{private:true}}).on('broadcast',{event:'incoming'},async msg=>{const s=msg?.payload||msg;if(!s?.conversation_id||!s?.from||s.from===user.id||callDirection||callPeer)return;try{const {data:blocked}=await sb.from('user_blocks').select('blocked_id').eq('owner_id',user.id).eq('blocked_id',s.from).maybeSingle();if(blocked)return;const ch=await subscribeCallChannel(s.conversation_id);activeCallChannel=ch;callChannelConversation=s.conversation_id;activeConversation=s.conversation_id;activeChatUser=s.from;await handleCallSignal({type:'ring',from:s.from,name:s.name},s.conversation_id)}catch(err){console.warn('PIXY inbox call:',err)}}).subscribe();
- const {data,error}=await sb.rpc('list_my_direct_chats');if(error){console.warn('PIXY incoming calls list:',error.message);return}for(const row of data||[]){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY incoming channel failed:',row.conversation_id,err)}}
+ callInboxChannel=sb.channel('pixy-call-invites-'+user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'call_invites',filter:'callee_id=eq.'+user.id},async payload=>{
+  const invite=payload.new;if(!invite?.conversation_id||!invite?.caller_id||callDirection||callPeer)return;
+  try{const {data:blocked}=await sb.from('user_blocks').select('blocked_id').eq('owner_id',user.id).eq('blocked_id',invite.caller_id).maybeSingle();if(blocked)return;
+   const {data:member}=await sb.from('conversation_members').select('conversation_id').eq('conversation_id',invite.conversation_id).eq('user_id',user.id).maybeSingle();if(!member)return;
+   const ch=await subscribeCallChannel(invite.conversation_id);activeCallChannel=ch;callChannelConversation=invite.conversation_id;activeConversation=invite.conversation_id;activeChatUser=invite.caller_id;
+   await handleCallSignal({type:'ring',from:invite.caller_id},invite.conversation_id);
+  }catch(err){console.warn('PIXY incoming call invite:',err)}
+ }).subscribe();
+ const {data,error}=await sb.rpc('list_my_direct_chats');
+ if(error){console.warn('PIXY incoming channels list:',error.message);return}
+ for(const row of data||[]){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY incoming channel failed:',row.conversation_id,err)}}
 }
 async function sendCallSignal(type,extra={}){if(!activeCallChannel){if(!callChannelConversation)await ensureCallChannel();else activeCallChannel=callChannels.get(callChannelConversation)}if(!activeCallChannel)throw new Error('Канал звонка не подключён.');return activeCallChannel.send({type:'broadcast',event:'signal',payload:{type,from:user.id,name:profile?.display_name||profile?.username||'Пользователь',...extra}})}
 async function createCallPeer(){
@@ -294,14 +303,13 @@ async function createCallPeer(){
  callLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
  callLocalStream.getAudioTracks().forEach(t=>{t.enabled=!callMuted;pc.addTrack(t,callLocalStream)});return pc;
 }
-async function sendCallInboxPing(targetId,payload){const ch=sb.channel('pixy-call-inbox-'+targetId,{config:{private:true}});await new Promise((resolve,reject)=>{let done=false;const timer=setTimeout(()=>{if(!done){done=true;reject(new Error('Тайм-аут канала входящего звонка'))}},8000);ch.subscribe(status=>{if(status==='SUBSCRIBED'&&!done){done=true;clearTimeout(timer);resolve()}else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!done){done=true;clearTimeout(timer);reject(new Error('Не удалось подключить канал входящего звонка'))}})});const result=await ch.send({type:'broadcast',event:'incoming',payload});await sb.removeChannel(ch);if(result==='error')throw new Error('Не удалось отправить уведомление о звонке')}
 async function startVoiceCall(){
  try{await unlockCallAudio();}catch(_){}
  if(!activeChatUser)return toast('Сначала выбери человека для звонка.');if(!activeConversation){const {data:cid,error}=await sb.rpc('create_direct_conversation',{other_user:activeChatUser});if(error||!cid)return toast(error?.message||'Не удалось подготовить звонок.');activeConversation=cid;}
  if(callDirection||callPeer)return toast('Звонок уже идёт.');
  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return toast('Браузер не поддерживает интернет-звонки.');
  callDirection='outgoing';callPeerName=$('chatTitle').textContent||'Контакт';callUi(true,'Вызов…');startCallTone('outgoing');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
- try{await ensureCallChannel(activeConversation);await sendCallInboxPing(activeChatUser,{from:user.id,name:profile?.display_name||profile?.username||'Пользователь',conversation_id:activeConversation});const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
+ try{await ensureCallChannel(activeConversation);const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});if(inviteError)throw inviteError;const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
  catch(err){console.error('PIXY call start:',err);toast('Не удалось начать звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
 }
 async function acceptVoiceCall(){

@@ -527,6 +527,21 @@ function stopCamera(){
 }
 
 let cameraMask='none',lastFxFrameAt=0;
+let faceLandmarker=null,faceLandmarkerLoading=null,faceLandmarks=null,lastFaceDetectAt=0;
+async function loadFaceLandmarker(){
+ if(faceLandmarker||faceLandmarkerLoading)return faceLandmarkerLoading;
+ faceLandmarkerLoading=(async()=>{
+  try{
+   const vision=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+   const files=await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+   const options={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numFaces:1};
+   try{faceLandmarker=await vision.FaceLandmarker.createFromOptions(files,options)}
+   catch(_){options.baseOptions.delegate='CPU';faceLandmarker=await vision.FaceLandmarker.createFromOptions(files,options)}
+   return faceLandmarker;
+  }catch(err){console.warn('PIXY face tracking unavailable:',err);return null}
+ })();
+ return faceLandmarkerLoading;
+}
 function setupCameraZoom(){
  const input=$('cameraZoom'),track=cameraStream?.getVideoTracks?.()[0];if(!input||!track)return;
  try{
@@ -583,8 +598,20 @@ function startCameraFxRender(){
   if(!cameraStream||!zoomCanvasStream)return;
   if(now-lastFxFrameAt>=30&&video.readyState>=2){
    lastFxFrameAt=now;
+   if(cameraMask==='eyes'&&faceLandmarker&&now-lastFaceDetectAt>90){
+    lastFaceDetectAt=now;
+    try{const result=faceLandmarker.detectForVideo(video,now);faceLandmarks=result.faceLandmarks?.[0]||null}catch(_){faceLandmarks=null}
+   }
    const z=cameraZoomHardware?1:Math.max(1,Number($('cameraZoom').value)||1),sw=video.videoWidth/z,sh=video.videoHeight/z;
    ctx.drawImage(video,(video.videoWidth-sw)/2,(video.videoHeight-sh)/2,sw,sh,0,0,w,h);
+   let trackedEyes=null;
+   if(cameraMask==='eyes'){
+    const cropX=(video.videoWidth-sw)/2,cropY=(video.videoHeight-sh)/2;
+    if(faceLandmarks){
+     const center=ids=>ids.reduce((a,id)=>({x:a.x+faceLandmarks[id].x/ids.length,y:a.y+faceLandmarks[id].y/ids.length}),{x:0,y:0});
+     trackedEyes=[center([33,133,159,145]),center([362,263,386,374])].map(p=>({x:(p.x*video.videoWidth-cropX)/sw*w,y:(p.y*video.videoHeight-cropY)/sh*h}));
+    }else trackedEyes=[{x:w*.405,y:h*.405},{x:w*.595,y:h*.405}];
+   }
    if(cameraMask!=='none'){
     const image=ctx.getImageData(0,0,w,h),src=new Uint8ClampedArray(image.data),dst=image.data;
     const cx=w*.5,cy=h*.47,rx=w*.235,ry=h*.32;
@@ -598,16 +625,11 @@ function startCameraFxRender(){
      }else if(cameraMask==='twist'){
       sx=x+Math.sin(dy*9)*18*(1-r);sy=y+Math.sin(dx*7)*13*(1-r);
      }else if(cameraMask==='eyes'){
-      // Сильное увеличение областей глаз: пиксели берутся из меньшего круга,
-      // поэтому реальные глаза в кадре становятся заметно крупнее, без наклеек.
-      // Увеличение настоящих глаз через локальную деформацию пикселей лица.
-      for(const ex of [.405,.595]){
-       const ex0=w*ex,ey0=h*.405,er=w*.072,eyr=h*.055;
-       const dxEye=(x-ex0)/er,dyEye=(y-ey0)/eyr,ed=Math.sqrt(dxEye*dxEye+dyEye*dyEye);
-       if(ed<1){
-        const falloff=(1-ed*ed)*(1-ed*ed),bulge=1-.72*falloff;
-        sx=ex0+(x-ex0)*bulge;sy=ey0+(y-ey0)*bulge;break;
-       }
+      for(const eye of trackedEyes||[]){
+       const eyeDistance=trackedEyes?.length===2?Math.hypot(trackedEyes[1].x-trackedEyes[0].x,trackedEyes[1].y-trackedEyes[0].y):w*.2;
+       const er=Math.max(w*.045,eyeDistance*.31),eyr=er*.78;
+       const dxEye=(x-eye.x)/er,dyEye=(y-eye.y)/eyr,ed=Math.sqrt(dxEye*dxEye+dyEye*dyEye);
+       if(ed<1){const falloff=(1-ed*ed)*(1-ed*ed),bulge=1-.76*falloff;sx=eye.x+(x-eye.x)*bulge;sy=eye.y+(y-eye.y)*bulge;break}
       }
      }
      const ix=Math.max(0,Math.min(w-1,Math.round(sx))),iy=Math.max(0,Math.min(h-1,Math.round(sy))),a=(y*w+x)*4,b=(iy*w+ix)*4;
@@ -637,7 +659,7 @@ async function startCamera(){
   cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});
   const v=$('cameraPreview');v.srcObject=cameraStream;
   await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});
-  await v.play();setupCameraZoom();startCameraFxRender();$('cameraHint').textContent='Камера включена';
+  await v.play();setupCameraZoom();loadFaceLandmarker();startCameraFxRender();$('cameraHint').textContent='Камера включена';
  }catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}
 }
 function setCaptureMode(m){

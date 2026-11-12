@@ -307,6 +307,7 @@ function observeVisibleMedia(root){
   pixyMediaObserver.observe(el);
  });
 }
+function authorAvatarMarkup(p,cls='avatar post-author-avatar'){const initial=safe((p?.display_name||p?.username||'P').slice(0,1).toUpperCase());return p?.avatar_url?'<span class="'+cls+'"><img src="'+safe(p.avatar_url)+'" alt="Аватар @'+safe(p.username||'пользователь')+'" loading="lazy" decoding="async"></span>':'<span class="'+cls+' avatar-gradient">'+initial+'</span>'}
 async function loadFeed(){
  if(!sb)return;
  const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
@@ -318,15 +319,15 @@ async function loadFeed(){
   const liked=own?.reaction==='like';
   const commentCount=p.comments?.[0]?.count||0;
   const reactionCount=(p.reactions||[]).filter(r=>r.reaction==='like').length;
-  return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><button class="post-author-link" type="button" data-open-profile="'+p.author_id+'"><span class="avatar avatar-gradient">'+safe((p.profiles?.display_name||'P').slice(0,1))+'</span></button><button class="post-user post-author-link" type="button" data-open-profile="'+p.author_id+'"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></button></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+['❤️','🤩','😎','😂','🔥'].map(em=>' <button class="'+(own?.reaction===em?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+em+'" aria-label="Реакция '+em+'">'+em+'</button>').join('')+'</div></article>';
+  return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><button class="post-author-link" type="button" data-open-profile="'+p.author_id+'">'+authorAvatarMarkup(p.profiles)+'</button><button class="post-user post-author-link" type="button" data-open-profile="'+p.author_id+'"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></button></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+['❤️','🤩','😎','😂','🔥'].map(em=>' <button class="'+(own?.reaction===em?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+em+'" aria-label="Реакция '+em+'">'+em+'</button>').join('')+'</div></article>';
  }).join('');
  bindVideoAudio(feed);bindCustomVideoControls(feed);observeVisibleMedia(feed);
 }
 async function loadVideos(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
+ const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
- $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" muted playsinline preload="none" style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
+ $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><button class="post-author-link" type="button" data-open-profile="'+p.author_id+'">'+authorAvatarMarkup(p.profiles)+'</button><button class="post-user post-author-link" type="button" data-open-profile="'+p.author_id+'"><strong>@'+safe(p.profiles?.username||'user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></button></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" muted playsinline preload="none" style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
  bindVideoAudio($('view-videos'));bindCustomVideoControls($('view-videos'));observeVisibleMedia($('view-videos'));
 }
@@ -706,7 +707,7 @@ function stopCamera(){
  const p=$('cameraPreview');if(p)p.srcObject=null;
 }
 
-let cameraMask='none',lastFxFrameAt=0;
+let cameraMask='none',lastFxFrameAt=0,captureDelayValue=0,captureDelayTimer=null,captureDelayResolve=null,captureDelayActive=false;
 let faceLandmarker=null,faceLandmarkerLoading=null,faceLandmarks=null,lastFaceDetectAt=0,cameraStartPromise=null;
 async function loadFaceLandmarker(){
  if(faceLandmarker||faceLandmarkerLoading)return faceLandmarkerLoading;
@@ -758,16 +759,11 @@ cameraGesture?.addEventListener('touchstart',e=>{if(e.touches.length===2){pinchS
 cameraGesture?.addEventListener('touchmove',e=>{if(e.touches.length!==2||!pinchStartDistance)return;e.preventDefault();const distance=touchDistance(e.touches),factor=distance/pinchStartDistance;if(Math.abs(distance-pinchStartDistance)<2)return;const next=pinchStartZoom*factor;const now=performance.now();if(now-lastPinchUpdate>12){lastPinchUpdate=now;applyCameraZoom(next)}},{passive:false});
 cameraGesture?.addEventListener('touchend',e=>{if(e.touches.length<2)pinchStartDistance=0},{passive:true});
 cameraGesture?.addEventListener('touchcancel',()=>{pinchStartDistance=0},{passive:true});
-function setCameraMask(mask){
- cameraMask='none';
- document.querySelectorAll('[data-mask]').forEach(b=>b.classList.toggle('active',b.dataset.mask===cameraMask));
- const labels={none:'Без маски',fat:'Пухлое лицо',thin:'Худое лицо',twist:'Кривое лицо',eyes:'Большие глаза'};
- $('cameraHint').textContent='Маска: '+labels[cameraMask];
-}
-$('cameraMaskPicker')?.addEventListener('click',e=>{const b=e.target.closest('[data-mask]');if(b)setCameraMask(b.dataset.mask)});
+function setCameraMask(mask){cameraMask=mask||'none';document.querySelectorAll('[data-mask]').forEach(b=>b.classList.toggle('active',b.dataset.mask===cameraMask));const labels={none:'Без маски',fat:'Пухлое лицо',thin:'Худое лицо',twist:'Кривое лицо',funny:'Смешное лицо',eyes:'Большие глаза'};$('cameraHint').textContent='Маска: '+(labels[cameraMask]||'Без маски')}
+$('cameraMaskPicker')?.addEventListener('click',e=>{const b=e.target.closest('[data-mask]');if(b){setCameraMask(b.dataset.mask);$('cameraMaskPicker').classList.add('hidden')}});
 let maskSwipeStartX=0;
 $('cameraMaskPicker')?.addEventListener('pointerdown',e=>{maskSwipeStartX=e.clientX});
-$('cameraMaskPicker')?.addEventListener('pointerup',e=>{const dx=e.clientX-maskSwipeStartX;if(Math.abs(dx)<35)return;const masks=['none','fat','thin','twist','eyes'],i=masks.indexOf(cameraMask);setCameraMask(masks[Math.max(0,Math.min(masks.length-1,i+(dx<0?1:-1)))])});
+$('cameraMaskPicker')?.addEventListener('pointerup',e=>{const dx=e.clientX-maskSwipeStartX;if(Math.abs(dx)<35)return;const masks=['none','fat','thin','twist','funny','eyes'],i=masks.indexOf(cameraMask);setCameraMask(masks[Math.max(0,Math.min(masks.length-1,i+(dx<0?1:-1)))])});
 function startCameraFxRender(){
  const video=$('cameraPreview'),canvas=$('cameraFxCanvas');if(!video?.videoWidth||!canvas)return;
  const scale=Math.min(1,720/video.videoWidth,720/video.videoHeight),w=Math.max(1,Math.round(video.videoWidth*scale)),h=Math.max(1,Math.round(video.videoHeight*scale));
@@ -778,45 +774,21 @@ function startCameraFxRender(){
   if(!cameraStream||!zoomCanvasStream)return;
   if(now-lastFxFrameAt>=30&&video.readyState>=2){
    lastFxFrameAt=now;
-   if(cameraMask==='eyes'&&faceLandmarker&&now-lastFaceDetectAt>90){
-    lastFaceDetectAt=now;
-    try{const result=faceLandmarker.detectForVideo(video,now);faceLandmarks=result.faceLandmarks?.[0]||null}catch(_){faceLandmarks=null}
-   }
-   const z=cameraZoomHardware?1:Math.max(1,Number($('cameraZoom').value)||1),sw=video.videoWidth/z,sh=video.videoHeight/z;
-   ctx.drawImage(video,(video.videoWidth-sw)/2,(video.videoHeight-sh)/2,sw,sh,0,0,w,h);
-   let trackedEyes=null,trackedEyeRadius=w*.2;
-   if(cameraMask==='eyes'){
-    const cropX=(video.videoWidth-sw)/2,cropY=(video.videoHeight-sh)/2;
-    if(faceLandmarks){
-     const center=ids=>ids.reduce((a,id)=>({x:a.x+faceLandmarks[id].x/ids.length,y:a.y+faceLandmarks[id].y/ids.length}),{x:0,y:0});
-     trackedEyes=[center([33,133,159,145]),center([362,263,386,374])].map(p=>({x:(p.x*video.videoWidth-cropX)/sw*w,y:(p.y*video.videoHeight-cropY)/sh*h}));
-     trackedEyeRadius=Math.hypot(trackedEyes[1].x-trackedEyes[0].x,trackedEyes[1].y-trackedEyes[0].y);
-    }else trackedEyes=[{x:w*.405,y:h*.405},{x:w*.595,y:h*.405}];
-   }
-   if(cameraMask!=='none'){
-    const image=ctx.getImageData(0,0,w,h),src=new Uint8ClampedArray(image.data),dst=image.data;
-    const cx=w*.5,cy=h*.47,rx=w*.235,ry=h*.32;
+   if(cameraMask!=='none'&&faceLandmarker&&now-lastFaceDetectAt>75){lastFaceDetectAt=now;try{const result=faceLandmarker.detectForVideo(video,now);faceLandmarks=result.faceLandmarks?.[0]||null}catch(_){faceLandmarks=null}}
+   const z=cameraZoomHardware?1:Math.max(1,Number($('cameraZoom').value)||1),sw=video.videoWidth/z,sh=video.videoHeight/z,cropX=(video.videoWidth-sw)/2,cropY=(video.videoHeight-sh)/2;
+   ctx.drawImage(video,cropX,cropY,sw,sh,0,0,w,h);
+   const point=id=>({x:(faceLandmarks[id].x*video.videoWidth-cropX)/sw*w,y:(faceLandmarks[id].y*video.videoHeight-cropY)/sh*h});
+   const center=ids=>ids.reduce((a,id)=>{const p=point(id);return{x:a.x+p.x/ids.length,y:a.y+p.y/ids.length}},{x:0,y:0});
+   if(cameraMask!=='none'&&faceLandmarks){
+    const oval=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109].map(point),xs=oval.map(p=>p.x),ys=oval.map(p=>p.y),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),cx=(minX+maxX)/2,cy=(minY+maxY)/2,rx=Math.max(12,(maxX-minX)*.53),ry=Math.max(12,(maxY-minY)*.55);
+    const eyes=[center([33,133,159,145]),center([362,263,386,374])],eyeDistance=Math.hypot(eyes[1].x-eyes[0].x,eyes[1].y-eyes[0].y),mouth=center([61,291,13,14,78,308]),image=ctx.getImageData(0,0,w,h),src=new Uint8ClampedArray(image.data),dst=image.data;
     const x0=Math.max(0,Math.floor(cx-rx)),x1=Math.min(w,Math.ceil(cx+rx)),y0=Math.max(0,Math.floor(cy-ry)),y1=Math.min(h,Math.ceil(cy+ry));
-    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
-     const dx=(x-cx)/rx,dy=(y-cy)/ry,r=Math.sqrt(dx*dx+dy*dy);if(r>1)continue;
-     let sx=x,sy=y;
-     if(cameraMask==='fat'||cameraMask==='thin'){
-      const k=cameraMask==='fat'?.78:1.22,f=1+(k-1)*(1-r*r);
-      sx=cx+dx*f*rx;sy=cy+dy*f*ry;
-     }else if(cameraMask==='twist'){
-      sx=x+Math.sin(dy*9)*18*(1-r);sy=y+Math.sin(dx*7)*13*(1-r);
-     }else if(cameraMask==='eyes'){
-      for(const eye of trackedEyes||[]){
-       const er=Math.max(w*.045,trackedEyeRadius*.31),eyr=er*.78;
-       const dxEye=(x-eye.x)/er,dyEye=(y-eye.y)/eyr,ed=Math.sqrt(dxEye*dxEye+dyEye*dyEye);
-       if(ed<1){const falloff=(1-ed*ed)*(1-ed*ed),bulge=1-.76*falloff;sx=eye.x+(x-eye.x)*bulge;sy=eye.y+(y-eye.y)*bulge;break}
-      }
-     }
-     const ix=Math.max(0,Math.min(w-1,Math.round(sx))),iy=Math.max(0,Math.min(h-1,Math.round(sy))),a=(y*w+x)*4,b=(iy*w+ix)*4;
-     dst[a]=src[b];dst[a+1]=src[b+1];dst[a+2]=src[b+2];dst[a+3]=src[b+3];
-    }
+    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const dx=(x-cx)/rx,dy=(y-cy)/ry,r=Math.sqrt(dx*dx+dy*dy);if(r>1)continue;const edge=(1-r*r)*(1-r*r);let sx=x,sy=y;
+     if(cameraMask==='fat'||cameraMask==='thin'){const k=cameraMask==='fat'?.72:1.28,f=1+(k-1)*edge;sx=cx+dx*f*rx;sy=cy+dy*(1+(k-1)*.38*edge)*ry}
+     else if(cameraMask==='twist'||cameraMask==='funny'){const strength=cameraMask==='twist'?1:.72;sx=x+Math.sin(dy*8+dx*2)*rx*.22*edge*strength;sy=y+Math.sin(dx*7-dy*2)*ry*.16*edge*strength;if(cameraMask==='funny'){const mx=(x-mouth.x)/(rx*.35),my=(y-mouth.y)/(ry*.2),mr=mx*mx+my*my;if(mr<1)sy+=Math.sign(y-mouth.y||1)*ry*.16*(1-mr)*(1-mr)}}
+     else if(cameraMask==='eyes'){for(const eye of eyes){const er=Math.max(w*.035,eyeDistance*.30),eyr=er*.8,ex=(x-eye.x)/er,ey=(y-eye.y)/eyr,ed=ex*ex+ey*ey;if(ed<1){const bulge=.62*(1-ed)*(1-ed);sx=eye.x+(x-eye.x)*(1-bulge);sy=eye.y+(y-eye.y)*(1-bulge);break}}}
+     const ix=Math.max(0,Math.min(w-1,Math.round(sx))),iy=Math.max(0,Math.min(h-1,Math.round(sy))),a=(y*w+x)*4,b=(iy*w+ix)*4;dst[a]=src[b];dst[a+1]=src[b+1];dst[a+2]=src[b+2];dst[a+3]=src[b+3];}
     ctx.putImageData(image,0,0);
-    
    }
   }
   zoomRenderFrame=requestAnimationFrame(draw);
@@ -851,10 +823,10 @@ function setCaptureMode(m){
  $('capturePhotoMode').classList.toggle('active',m==='photo');$('captureVideoMode').classList.toggle('active',m==='video');
  $('cameraTimerBtn')?.classList.toggle('hidden',m!=='video');$('cameraHint').textContent=m==='video'?'Видео · до 20 секунд':'Фото';
 }
-function setCaptureDelay(seconds){captureDelayValue=Number(seconds)||3;$('cameraTimerBtn').textContent='◷ '+captureDelayValue+'с';$('cameraTimerMenu').classList.add('hidden');document.querySelectorAll('[data-capture-delay]').forEach(b=>b.classList.toggle('active',Number(b.dataset.captureDelay)===captureDelayValue))}
+function setCaptureDelay(seconds){captureDelayValue=Math.max(0,Number(seconds)||0);$('cameraTimerBtn').classList.toggle('selected',captureDelayValue>0);$('cameraTimerBtn').setAttribute('aria-label',captureDelayValue?'Таймер '+captureDelayValue+' секунды':'Таймер выключен');$('cameraTimerMenu').classList.add('hidden');document.querySelectorAll('[data-capture-delay]').forEach(b=>b.classList.toggle('active',Number(b.dataset.captureDelay)===captureDelayValue))}
 function playCountdownTick(final=false){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!pixyAudioContext)pixyAudioContext=new AC();const ctx=pixyAudioContext;if(ctx.state==='suspended')ctx.resume().catch(()=>{});const now=ctx.currentTime;const notes=final?[[784,0,.16],[1046,.12,.2]]:[[587.33,0,.19],[880,.025,.13]];notes.forEach(([hz,delay,duration],i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(hz,now+delay);osc.frequency.exponentialRampToValueAtTime(hz*(i?1.18:1.04),now+delay+duration);gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(final?.13:.085,now+delay+.018);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.025)})}catch(err){console.warn('PIXY countdown sound:',err)}}
 function runCaptureCountdown(){if(captureDelayValue<=0)return Promise.resolve(true);captureDelayActive=true;let left=captureDelayValue;$('cameraCountdownNumber').textContent=String(left);$('cameraCountdownOverlay').classList.remove('hidden');playCountdownTick(false);return new Promise(resolve=>{captureDelayResolve=resolve;captureDelayTimer=setInterval(()=>{if(!captureDelayActive)return;left--;if(left>0){$('cameraCountdownNumber').textContent=String(left);$('cameraCountdownNumber').classList.remove('count-pop');void $('cameraCountdownNumber').offsetWidth;$('cameraCountdownNumber').classList.add('count-pop');playCountdownTick(false);return}clearInterval(captureDelayTimer);captureDelayTimer=null;captureDelayActive=false;$('cameraCountdownOverlay').classList.add('hidden');captureDelayResolve=null;playCountdownTick(true);resolve(true)},1000)})}
-$('cameraTimerBtn')?.addEventListener('click',()=>{$('cameraTimerMenu').classList.toggle('hidden')});$('cameraTimerMenu')?.addEventListener('click',e=>{const b=e.target.closest('[data-capture-delay]');if(b)setCaptureDelay(b.dataset.captureDelay)});document.addEventListener('click',e=>{if(!e.target.closest('.camera-timer-control'))$('cameraTimerMenu')?.classList.add('hidden')});setCaptureDelay(3);
+$('cameraTimerBtn')?.addEventListener('click',()=>{$('cameraTimerMenu').classList.toggle('hidden')});$('cameraMaskBtn')?.addEventListener('click',()=>{$('cameraMaskPicker').classList.toggle('hidden')});$('cameraTimerMenu')?.addEventListener('click',e=>{const b=e.target.closest('[data-capture-delay]');if(b)setCaptureDelay(b.dataset.captureDelay)});document.addEventListener('click',e=>{if(!e.target.closest('.camera-timer-control'))$('cameraTimerMenu')?.classList.add('hidden');if(!e.target.closest('.camera-tools-rail')&&!e.target.closest('.camera-mask-picker'))$('cameraMaskPicker')?.classList.add('hidden')});setCaptureDelay(0);
 function openComposer(){
  if(!user)return toast('Сначала войди в PIXY.');
  $('composerModal').classList.remove('hidden');$('composerModal').classList.remove('camera-opening');void $('composerModal').offsetWidth;$('composerModal').classList.add('camera-opening');

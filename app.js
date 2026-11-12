@@ -162,7 +162,7 @@ function mediaFilterCss(key){
 function renderPostMedia(p){
  const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];
  const filter=mediaFilterCss(p.media_filter),original=Math.max(0,Math.min(1,Number(p.original_volume??1))),musicVolume=Math.max(0,Math.min(1,Number(p.music_volume??.7)));
- if(p.media_type==='video')return '<div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+original+'" data-music-volume="'+musicVolume+'" controls playsinline preload="metadata" style="filter:'+filter+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
+ if(p.media_type==='video')return '<div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+original+'" data-music-volume="'+musicVolume+'" playsinline preload="metadata" style="filter:'+filter+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
  const first=items[0]||{url:p.media_url};
  if(items.length>1)return '<div class="post-carousel" data-carousel data-music-volume="'+musicVolume+'" data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" style="filter:'+filter+'" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+(p.music_url?'<button type="button" class="carousel-play-overlay" data-carousel-toggle>Нажмите, чтобы включить</button>':'')+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span><span class="carousel-hint">‹ Листай ›</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music data-music-volume="'+musicVolume+'" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
  return '<img style="filter:'+filter+'" src="'+safe(first.url||p.media_url)+'" alt="Публикация">';
@@ -183,6 +183,7 @@ function bindVideoAudio(root){
   video.addEventListener('ended',()=>{audio.pause();audio.currentTime=0});
  });
 }
+function observeVisibleMedia(root){if(!root||!('IntersectionObserver'in window))return;const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{const el=entry.target;if(entry.isIntersecting&&entry.intersectionRatio>.62){if(el.tagName==='VIDEO')el.play().catch(()=>{});else if(el.matches('[data-carousel]')){const audio=el.parentElement?.querySelector('[data-carousel-music]');audio?.play().catch(()=>{})}}else{if(el.tagName==='VIDEO')el.pause();else if(el.matches('[data-carousel]')){const audio=el.parentElement?.querySelector('[data-carousel-music]');audio?.pause()}}}),{threshold:[0,.62,.85]});root.querySelectorAll('video[data-post-video], [data-carousel]').forEach(el=>observer.observe(el))}
 async function loadFeed(){
  if(!sb)return;
  const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
@@ -196,15 +197,15 @@ async function loadFeed(){
   const reactionCount=(p.reactions||[]).filter(r=>r.reaction==='like').length;
   return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><button class="post-author-link" type="button" data-open-profile="'+p.author_id+'"><span class="avatar avatar-gradient">'+safe((p.profiles?.display_name||'P').slice(0,1))+'</span></button><button class="post-user post-author-link" type="button" data-open-profile="'+p.author_id+'"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></button></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+['❤️','🤩','😎','😂','🔥'].map(em=>' <button class="'+(own?.reaction===em?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+em+'" aria-label="Реакция '+em+'">'+em+'</button>').join('')+'</div></article>';
  }).join('');
- bindVideoAudio(feed);
+ bindVideoAudio(feed);observeVisibleMedia(feed);
 }
 async function loadVideos(){
  if(!sb)return;
  const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
- $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" controls playsinline style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
+ $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" playsinline style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
- bindVideoAudio($('view-videos'));
+ bindVideoAudio($('view-videos'));observeVisibleMedia($('view-videos'));
 }
 async function loadStories(){
  if(!sb)return;
@@ -250,14 +251,14 @@ function startCallTone(kind){
  const playPattern=()=>{
   if(!pixyAudioContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;pixyAudioContext=new AC()}
   const ctx=pixyAudioContext;if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-  const freqs=kind==='incoming'?[440,480]:[425,0];
-  freqs.forEach((freq,i)=>{if(!freq)return;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.07,ctx.currentTime+.04);gain.gain.setValueAtTime(.07,ctx.currentTime+.75);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.9);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.92);callToneOscillators.push(osc)});
+  const freqs=kind==='incoming'?[659,784]:[425,0];
+  freqs.forEach((freq,i)=>{if(!freq)return;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.07,ctx.currentTime+.04);gain.gain.setValueAtTime(.07,ctx.currentTime+.28);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.34);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.92);callToneOscillators.push(osc)});
  };
  playPattern();callToneTimer=setInterval(playPattern,kind==='incoming'?2600:3600);
 }
 
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
-let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='';
+let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='',callInboxChannel=null;
 
 function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);document.body.classList.toggle('call-active',!!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';const av=$('callAvatar');av.textContent=(callPeerAvatarUrl?'':(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase());try{const u=new URL(callPeerAvatarUrl);av.style.backgroundImage=u.protocol==='https:'?'url("'+u.href.replaceAll('"','%22')+'")':'';av.style.backgroundSize='cover';av.style.backgroundPosition='center'}catch(_){av.style.backgroundImage=''}}
 async function loadCallPeerProfile(uid,fallback){try{const {data}=await sb.from('profiles').select('display_name,avatar_url').eq('id',uid).maybeSingle();callPeerName=data?.display_name||fallback||'Контакт';callPeerAvatarUrl=data?.avatar_url||''}catch(_){callPeerName=fallback||'Контакт';callPeerAvatarUrl=''}}
@@ -266,7 +267,7 @@ const callChannels=new Map();
 async function subscribeCallChannel(cid){
  if(!cid)throw new Error('Не найдена переписка для звонка.');
  if(callChannels.has(cid))return callChannels.get(cid);
- const ch=sb.channel('pixy-call-'+cid,{config:{private:true}})
+ const ch=sb.channel('pixy-call-'+cid,{config:{private:false}})
   .on('broadcast',{event:'signal'},m=>{activeCallChannel=ch;callChannelConversation=cid;handleCallSignal(m?.payload||m,cid).catch(err=>console.error('PIXY incoming call:',err))});
  callChannels.set(cid,ch);
  await new Promise((resolve,reject)=>{let done=false;const timeout=setTimeout(()=>{if(!done){done=true;callChannels.delete(cid);reject(new Error('Не удалось подключить канал звонка: тайм-аут.'))}},12000);ch.subscribe(status=>{if(status==='SUBSCRIBED'&&!done){done=true;clearTimeout(timeout);resolve()}else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!done){done=true;clearTimeout(timeout);callChannels.delete(cid);reject(new Error('Realtime отклонил канал звонка: '+status))}})});
@@ -278,9 +279,9 @@ async function ensureCallChannel(cid=activeConversation){
 }
 async function initIncomingCallListeners(){
  if(!sb||!user)return;
- const {data,error}=await sb.rpc('list_my_direct_chats');
- if(error){console.warn('PIXY incoming calls list:',error.message);return}
- for(const row of data||[]){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY incoming channel failed:',row.conversation_id,err)}}
+ if(callInboxChannel)try{await sb.removeChannel(callInboxChannel)}catch(_){}
+ callInboxChannel=sb.channel('pixy-call-inbox-'+user.id,{config:{private:false}}).on('broadcast',{event:'incoming'},async msg=>{const s=msg?.payload||msg;if(!s?.conversation_id||!s?.from||s.from===user.id||callDirection||callPeer)return;try{const {data:blocked}=await sb.from('user_blocks').select('blocked_id').eq('owner_id',user.id).eq('blocked_id',s.from).maybeSingle();if(blocked)return;const ch=await subscribeCallChannel(s.conversation_id);activeCallChannel=ch;callChannelConversation=s.conversation_id;activeConversation=s.conversation_id;activeChatUser=s.from;await handleCallSignal({type:'ring',from:s.from,name:s.name},s.conversation_id)}catch(err){console.warn('PIXY inbox call:',err)}}).subscribe();
+ const {data,error}=await sb.rpc('list_my_direct_chats');if(error){console.warn('PIXY incoming calls list:',error.message);return}for(const row of data||[]){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY incoming channel failed:',row.conversation_id,err)}}
 }
 async function sendCallSignal(type,extra={}){if(!activeCallChannel){if(!callChannelConversation)await ensureCallChannel();else activeCallChannel=callChannels.get(callChannelConversation)}if(!activeCallChannel)throw new Error('Канал звонка не подключён.');return activeCallChannel.send({type:'broadcast',event:'signal',payload:{type,from:user.id,name:profile?.display_name||profile?.username||'Пользователь',...extra}})}
 async function createCallPeer(){
@@ -294,11 +295,11 @@ async function createCallPeer(){
 }
 async function startVoiceCall(){
  try{await unlockCallAudio();}catch(_){}
- if(!activeConversation||!activeChatUser)return toast('Открой чат с человеком, которому хочешь позвонить.');
+ if(!activeChatUser)return toast('Сначала выбери человека для звонка.');if(!activeConversation){const {data:cid,error}=await sb.rpc('create_direct_conversation',{other_user:activeChatUser});if(error||!cid)return toast(error?.message||'Не удалось подготовить звонок.');activeConversation=cid;}
  if(callDirection||callPeer)return toast('Звонок уже идёт.');
  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return toast('Браузер не поддерживает интернет-звонки.');
  callDirection='outgoing';callPeerName=$('chatTitle').textContent||'Контакт';callUi(true,'Вызов…');startCallTone('outgoing');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
- try{await ensureCallChannel(activeConversation);await sendCallSignal('ring');const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
+ try{await ensureCallChannel(activeConversation);const inbox=sb.channel('pixy-call-inbox-'+activeChatUser,{config:{private:false}});await inbox.send({type:'broadcast',event:'incoming',payload:{from:user.id,name:profile?.display_name||profile?.username||'Пользователь',conversation_id:activeConversation}});const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
  catch(err){console.error('PIXY call start:',err);toast('Не удалось начать звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
 }
 async function acceptVoiceCall(){
@@ -331,24 +332,30 @@ async function loadChatList(){
  const {data,error}=await sb.rpc('list_my_direct_chats');
  if(error){$('chatList').textContent=error.message;return}
  const rows=data||[];
- for(const row of rows){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY call subscription:',err)}}
- $('chatList').innerHTML=rows.map(x=>'<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.other_user_id+'" data-chat-name="'+safe(x.username||'user')+'"><span class="chat-person-avatar">'+safe((x.username||'P').slice(0,1).toUpperCase())+'</span><span><b>@'+safe(x.username||'user')+'</b><small>Открыть переписку</small></span><span class="chat-person-arrow">›</span></button>').join('')||'<div class="chat-empty"><span>✉</span><b>Пока никого нет</b><p>Когда появятся переписки, люди будут отображаться здесь.</p></div>';
+ const {data:hiddenRows}=await sb.from('chat_hidden').select('conversation_id').eq('owner_id',user.id);
+ const hidden=new Set((hiddenRows||[]).map(x=>x.conversation_id));
+ const visibleRows=rows.filter(x=>!hidden.has(x.conversation_id));
+ for(const row of visibleRows){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY call subscription:',row.conversation_id,err)}}
+ $('chatList').innerHTML=visibleRows.map(x=>'<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.other_user_id+'" data-chat-name="'+safe(x.username||'user')+'"><span class="chat-person-avatar">'+safe((x.username||'P').slice(0,1).toUpperCase())+'</span><span><b>@'+safe(x.username||'user')+'</b><small>Открыть переписку</small></span><span class="chat-person-arrow">›</span></button>').join('')||'<div class="chat-empty"><span>✉</span><b>Пока никого нет</b><p>Когда появятся переписки, люди будут отображаться здесь.</p></div>';
  $('chatPeoplePanel').classList.remove('hidden');$('chatConversationPanel').classList.add('hidden');
 }
 async function refreshChatMessages(cid){
  const {data,error}=await sb.from('messages').select('id,sender_id,body,attachment_url,attachment_type,created_at').eq('conversation_id',cid).order('created_at',{ascending:true}).limit(100);
  if(error){$('chatMessages').textContent=error.message;return}
- $('chatMessages').innerHTML=(data||[]).map(m=>'<div style="margin:8px 0;padding:10px 12px;border-radius:12px;background:'+(m.sender_id===user.id?'var(--accent-soft)':'var(--surface)')+';max-width:85%;margin-left:'+(m.sender_id===user.id?'auto':'0')+'">'+(m.body?safe(m.body):'')+(m.attachment_type==='audio'&&m.attachment_url?'<audio controls src="'+safe(m.attachment_url)+'"></audio>':'')+'<small style="display:block;opacity:.6">'+new Date(m.created_at).toLocaleTimeString()+'</small></div>').join('')||'<p class="hint">Начни переписку!</p>';
+ $('chatMessages').innerHTML=(data||[]).map(m=>{const own=m.sender_id===user.id;const audio=m.attachment_type==='audio'&&m.attachment_url;const bars=Array.from({length:30},(_,i)=>'<i style="height:'+([9,14,20,12,25,17,10,22,15,27,13,19,8,24,16][i%15])+'px"></i>').join('');return '<article class="message-bubble '+(own?'mine':'theirs')+'" data-message-id="'+m.id+'">'+(audio?'<div class="voice-note"><button class="voice-play" type="button" data-voice-play aria-label="Воспроизвести голосовое">▶</button><div class="voice-wave" data-wave>'+bars+'</div><span class="voice-duration">Голосовое</span><audio preload="metadata" src="'+safe(m.attachment_url)+'"></audio></div>':(m.body?'<div class="message-text">'+safe(m.body)+'</div>':''))+'<div class="message-meta"><time>'+new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+'</time>'+(own?'<button type="button" class="message-delete" data-delete-message="'+m.id+'" aria-label="Удалить сообщение">×</button>':'')+'</div></article>'}).join('')||'<p class="hint">Начни переписку!</p>';
  $('chatMessages').scrollTop=$('chatMessages').scrollHeight;
 }
 async function openChat(cid,uid,name){
- activeConversation=cid;activeChatUser=uid;document.body.classList.add('chat-open');$('chatTitle').textContent='@'+name;await loadCallPeerProfile(uid,'@'+name);$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
+ activeConversation=cid;activeChatUser=uid;await sb.from('chat_hidden').delete().eq('owner_id',user.id).eq('conversation_id',cid);document.body.classList.add('chat-open');$('chatTitle').textContent='@'+name;await loadCallPeerProfile(uid,'@'+name);$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
  if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}
  await refreshChatMessages(cid);
- activeChatChannel=sb.channel('pixy-chat-'+cid).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+cid},payload=>{if(activeConversation===cid)refreshChatMessages(cid)}).subscribe();
+ activeChatChannel=sb.channel('pixy-chat-'+cid).on('postgres_changes',{event:'*',schema:'public',table:'messages',filter:'conversation_id=eq.'+cid},payload=>{if(activeConversation===cid)refreshChatMessages(cid)}).subscribe();
  try{await ensureCallChannel(cid)}catch(err){console.warn('PIXY call channel:',err);toast('Звонки не подключены: '+err.message)}
 }
 $('chatList').addEventListener('click',e=>{const b=e.target.closest('[data-chat]');if(b)openChat(b.dataset.chat,b.dataset.chatUser,b.dataset.chatName)});
+$('chatMessages').addEventListener('click',async e=>{const del=e.target.closest('[data-delete-message]');if(del){if(!confirm('Удалить своё сообщение?'))return;const {error}=await sb.from('messages').delete().eq('id',del.dataset.deleteMessage).eq('sender_id',user.id);if(error)return toast(error.message);del.closest('[data-message-id]')?.remove();return}const play=e.target.closest('[data-voice-play]');if(play){const audio=play.parentElement.querySelector('audio');if(!audio)return;if(audio.paused){document.querySelectorAll('.voice-note audio').forEach(a=>{if(a!==audio)a.pause()});await audio.play().catch(()=>toast('Не удалось воспроизвести голосовое.'));play.textContent='Ⅱ'}else{audio.pause();play.textContent='▶'}audio.onended=()=>play.textContent='▶';audio.ontimeupdate=()=>{const wave=play.parentElement.querySelector('.voice-wave');if(wave)wave.style.setProperty('--progress',(audio.currentTime/(audio.duration||1))*100+'%')};return}});
+$('chatBlockBtn').onclick=async()=>{if(!activeChatUser)return;if(!confirm('Заблокировать этого пользователя? Он не сможет отправлять тебе сообщения.'))return;const {error}=await sb.from('user_blocks').upsert({owner_id:user.id,blocked_id:activeChatUser},{onConflict:'owner_id,blocked_id'});if(error)return toast(error.message);toast('Пользователь заблокирован.');};
+$('chatDeleteBtn').onclick=async()=>{if(!activeConversation)return;if(!confirm('Убрать этот чат из своего списка?'))return;const {error}=await sb.from('chat_hidden').upsert({owner_id:user.id,conversation_id:activeConversation},{onConflict:'owner_id,conversation_id'});if(error)return toast(error.message);activeConversation=null;activeChatUser=null;$('chatConversationPanel').classList.add('hidden');$('chatPeoplePanel').classList.remove('hidden');await loadChatList();};
 $('chatBackBtn').onclick=async()=>{if(activeChatChannel){await sb.removeChannel(activeChatChannel);activeChatChannel=null}if(activeCallChannel&&!callDirection){await sb.removeChannel(activeCallChannel);activeCallChannel=null;callChannelConversation=null}activeConversation=null;activeChatUser=null;document.body.classList.remove('chat-open');$('chatConversationPanel').classList.add('hidden');$('chatPeoplePanel').classList.remove('hidden');};
 $('chatSendForm').onsubmit=async e=>{
  e.preventDefault();const body=$('chatMessageInput').value.trim();if(!activeConversation||!body)return;
@@ -407,7 +414,7 @@ async function openPublicProfile(id){
  if(error||!p){$('publicProfileContent').innerHTML='<div class="profile-view-loading">Не удалось загрузить профиль.</div>';return}
  const {data:rel}=user?await sb.from('follows').select('following_id').eq('follower_id',user.id).eq('following_id',id).maybeSingle():{data:null};
  activePublicProfile=p;
- $('publicProfileContent').innerHTML='<header class="public-profile-head">'+avatarMarkup(p,'public-profile-avatar')+'<div><h2>'+safe(p.display_name||p.username)+'</h2><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></div>'+(user?'<button type="button" class="follow-action '+(rel?'following':'')+'" data-follow-toggle="'+p.id+'" data-following="'+(rel?'1':'0')+'">'+(rel?'Вы подписаны':'Подписаться')+'</button>':'')+'</header>'+(user?'<div class="public-profile-actions"><button type="button" class="primary-btn" data-start-chat="'+p.id+'" data-chat-name="'+safe(p.username)+'">✉ Написать</button><button type="button" class="chat-call-btn" data-start-call="'+p.id+'" data-chat-name="'+safe(p.username)+'">☎ Позвонить</button></div>':'')+'<p class="public-profile-bio">'+safe(p.bio||'')+'</p><div class="profile-stats public-profile-stats"><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="followers"><b>'+(followers||0)+'</b><span>подписчиков</span></button><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="following"><b>'+(following||0)+'</b><span>подписок</span></button></div><h3>Публикации</h3><div class="profile-grid public-profile-grid">'+((posts||[]).map(x=>'<div class="my-post">'+(x.media_type==='video'?'<video src="'+safe(x.media_url)+'" style="filter:'+mediaFilterCss(x.media_filter)+'" controls playsinline></video>':'<img src="'+safe(x.media_url)+'" alt="Публикация">')+'</div>').join('')||'<div class="empty-hint">Пока нет публикаций.</div>')+'</div>';
+ $('publicProfileContent').innerHTML='<header class="public-profile-head">'+avatarMarkup(p,'public-profile-avatar')+'<div><h2>'+safe(p.display_name||p.username)+'</h2><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></div>'+(user?'<button type="button" class="follow-action '+(rel?'following':'')+'" data-follow-toggle="'+p.id+'" data-following="'+(rel?'1':'0')+'">'+(rel?'Вы подписаны':'Подписаться')+'</button>':'')+'</header>'+(user?'<div class="public-profile-actions"><button type="button" class="primary-btn" data-start-chat="'+p.id+'" data-chat-name="'+safe(p.username)+'">✉ Написать</button><button type="button" class="chat-call-btn" data-start-call="'+p.id+'" data-chat-name="'+safe(p.username)+'">☎ Позвонить</button></div>':'')+'<p class="public-profile-bio">'+safe(p.bio||'')+'</p><div class="profile-stats public-profile-stats"><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="followers"><b>'+(followers||0)+'</b><span>подписчиков</span></button><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="following"><b>'+(following||0)+'</b><span>подписок</span></button></div><h3>Публикации</h3><div class="profile-grid public-profile-grid">'+((posts||[]).map(x=>'<div class="my-post">'+(x.media_type==='video'?'<video src="'+safe(x.media_url)+'" style="filter:'+mediaFilterCss(x.media_filter)+'" playsinline></video>':'<img src="'+safe(x.media_url)+'" alt="Публикация">')+'</div>').join('')||'<div class="empty-hint">Пока нет публикаций.</div>')+'</div>';
 }
 async function openFollowList(profileId,kind){
  if(!profileId)return;$('followListModal').classList.remove('hidden');$('followListTitle').textContent=kind==='followers'?'Подписчики':'Подписки';$('followListContent').innerHTML='<div class="profile-view-loading">Загружаем список…</div>';
@@ -586,7 +593,7 @@ cameraGesture?.addEventListener('touchmove',e=>{if(e.touches.length!==2||!pinchS
 cameraGesture?.addEventListener('touchend',e=>{if(e.touches.length<2)pinchStartDistance=0},{passive:true});
 cameraGesture?.addEventListener('touchcancel',()=>{pinchStartDistance=0},{passive:true});
 function setCameraMask(mask){
- cameraMask=['none','fat','thin','twist','eyes'].includes(mask)?mask:'none';
+ cameraMask='none';
  document.querySelectorAll('[data-mask]').forEach(b=>b.classList.toggle('active',b.dataset.mask===cameraMask));
  const labels={none:'Без маски',fat:'Пухлое лицо',thin:'Худое лицо',twist:'Кривое лицо',eyes:'Большие глаза'};
  $('cameraHint').textContent='Маска: '+labels[cameraMask];
@@ -1073,7 +1080,7 @@ async function loadProfilePosts(){
  if(error){console.warn('PIXY profile posts:',error);return}
  const posts=data||[];
  $('postCount').textContent=posts.length;
- $('profileGrid').innerHTML=posts.length?posts.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<video src="'+safe(p.media_url)+'" style="filter:'+mediaFilterCss(p.media_filter)+'" controls playsinline></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>';
+ $('profileGrid').innerHTML=posts.length?posts.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<video src="'+safe(p.media_url)+'" style="filter:'+mediaFilterCss(p.media_filter)+'" playsinline></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>';
 }
 
 const bgColors={aurora:['#38255d','#bb85f3'],sunset:['#64364f','#f3a17c'],ocean:['#173b55','#71c6dc'],candy:['#683b6c','#ee91ce'],forest:['#1d5146','#84d2ad'],cosmic:['#20214f','#9d9bff'],peach:['#794b3f','#ffc49d'],lavender:['#453d70','#c6b3ff'],neon:['#222044','#ff75b7'],silver:['#424252','#c9c9df']};

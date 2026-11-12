@@ -667,7 +667,7 @@ async function startCamera(){
  try{return await cameraStartPromise}finally{cameraStartPromise=null}
 }
 function setCaptureMode(m){
- captureMode=m;$('postMode').value=m==='video'?'video':'single';$('captureShutter').dataset.mode=m;
+ captureMode=m;$('postMode').value=m==='video'?'video':'single';$('captureShutter').dataset.mode=m;$('captureShutter').dataset.label=m==='video'?'Снять видео':'Сфоткать';
  $('capturePhotoMode').classList.toggle('active',m==='photo');$('captureVideoMode').classList.toggle('active',m==='video');
  $('cameraHint').textContent=m==='video'?'Видео · до 20 секунд':'Фото';
 }
@@ -699,7 +699,7 @@ function syncReviewAudio(){
 }
 function setComposerFiles(files,m){
  selectedFiles=files;reviewOriginalFiles=files.slice();selectedFile=files[0]||null;$('postMode').value=m;
- const p=$('filePreview');p.innerHTML='';reviewObjectUrls.forEach(URL.revokeObjectURL);reviewObjectUrls=[];
+ const p=$('filePreview');p.innerHTML='';p.dataset.index='0';reviewObjectUrls.forEach(URL.revokeObjectURL);reviewObjectUrls=[];
  files.forEach((f,i)=>{
   const u=URL.createObjectURL(f);reviewObjectUrls.push(u);
   const el=document.createElement(f.type.startsWith('video/')?'video':'img');el.src=u;el.dataset.reviewIndex=String(i);if(el.tagName==='IMG'&&i===0)el.classList.add('review-active');
@@ -836,9 +836,10 @@ $('captureShutter').onclick=async()=>{
      setComposerFiles([new File([blob],'pixy-video.webm',{type:blob.type||'video/webm'})],'video');
      $('cameraHint').textContent='Видео готово к публикации';
     }else $('cameraHint').textContent='Не удалось сохранить запись. Попробуй ещё раз.';
-    $('captureShutter').classList.remove('recording');
+    $('captureShutter').classList.remove('recording');$('captureShutter').dataset.label='Снять видео';
    };
    mediaRecorder.start(250);
+   $('captureShutter').dataset.label='Остановить';
    playPixyBeep('record-start');
    recordStartedAt=Date.now();
    $('captureShutter').classList.add('recording');
@@ -905,8 +906,8 @@ $('reviewSoundBtn').onclick=()=>{
  if(music&&selectedMusicId){music.volume=Number($('musicVolume').value)/100;music.play().catch(()=>{})}
 };
 $('reviewSoundClose').onclick=()=>$('reviewSoundPanel').classList.add('hidden');
-$('originalVolume').oninput=e=>{$('originalVolumeValue').textContent=e.target.value+'%';syncReviewAudio()};
-$('musicVolume').oninput=e=>{$('musicVolumeValue').textContent=e.target.value+'%';syncReviewAudio()};
+$('originalVolume').oninput=e=>{$('originalVolumeValue').textContent=e.target.value+'%';const v=$('filePreview').querySelector('video');if(v){v.volume=Number(e.target.value)/100;v.muted=Number(e.target.value)===0;v.play().catch(()=>{})}syncReviewAudio()};
+$('musicVolume').oninput=e=>{$('musicVolumeValue').textContent=e.target.value+'%';syncReviewAudio();const a=$('reviewMusicAudio');if(a&&selectedMusicId)a.play().catch(()=>{})};
 $('reviewChooseMusic').onclick=()=>{$('soundPicker').classList.remove('hidden');pickerMusicId=selectedMusicId;renderSoundTracks()};
 $('publishAsStory').onclick=()=>{
  reviewStoryMode=!reviewStoryMode;

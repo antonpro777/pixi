@@ -895,7 +895,7 @@ $('soundUseBtn').onclick=()=>{
  const preview=$('musicPickerPreview');if(preview){preview.pause();preview.removeAttribute('src')}
  $('soundPicker').classList.add('hidden');
  syncReviewAudio();
- const reviewMusic=$('reviewMusicAudio');if(reviewMusic&&t){reviewMusic.play().catch(()=>{})}
+ const reviewMusic=$('reviewMusicAudio');if(reviewMusic&&t){reviewMusic.src=t.audio_url;reviewMusic.currentTime=0;reviewMusic.play().catch(()=>{})}
 };
 $('reviewBackBtn').onclick=()=>{
  const music=$('reviewMusicAudio');if(music)music.pause();

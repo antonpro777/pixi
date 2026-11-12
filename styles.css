@@ -562,3 +562,121 @@ body.call-active{overflow:hidden}
   .capture-shutter{width:54px;height:54px}
   .capture-shutter span{width:38px;height:38px}
 }
+
+
+/* PIXY camera editor — full-screen review and a clean publish step */
+.camera-review-screen,.publish-details-screen{
+ position:absolute;inset:0;z-index:10;background:#08070d;color:#fff;overflow:hidden;
+}
+.camera-review-screen.hidden,.publish-details-screen.hidden{display:none!important}
+.camera-review-screen{animation:reviewFadeIn .24s ease both}
+.camera-review-media{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;background:#050508;touch-action:pan-y}
+.camera-review-media img,.camera-review-media video{
+ position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#050508;
+ transition:transform .28s cubic-bezier(.2,.75,.25,1),opacity .28s,filter .25s;
+}
+.camera-review-media img{opacity:0;transform:translateX(38px) scale(.985);pointer-events:none}
+.camera-review-media img.review-active{opacity:1;transform:translateX(0) scale(1);pointer-events:auto}
+.camera-review-media img.review-before{transform:translateX(-38px) scale(.985)}
+.camera-review-media video{object-fit:contain}
+.camera-review-media audio{display:none}
+.camera-review-top{
+ position:absolute;z-index:4;top:max(12px,env(safe-area-inset-top));left:14px;right:14px;
+ display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none
+}
+.camera-review-top button,.camera-review-top span{pointer-events:auto}
+.camera-review-top button{
+ min-width:46px;height:44px;padding:0 14px;border:1px solid #ffffff32;border-radius:24px;
+ color:#fff;background:#100e19cc;backdrop-filter:blur(16px);font-size:14px;font-weight:800
+}
+.camera-review-top #reviewBackBtn{font-size:26px;width:44px;padding:0}
+.camera-review-top span{font-size:9px;letter-spacing:1.4px;font-weight:900;color:#ffffffbb}
+.camera-review-bottom{
+ position:absolute;z-index:4;left:0;right:0;bottom:0;padding:34px 20px max(22px,env(safe-area-inset-bottom));
+ display:flex;justify-content:center;background:linear-gradient(transparent,#08070dd9 40%)
+}
+.camera-review-bottom button{
+ width:min(420px,100%);height:56px;border:0;border-radius:18px;
+ background:linear-gradient(110deg,#c4a2ff,#9367ed 55%,#d28bdb);color:#170f25;
+ font-size:15px;font-weight:900;box-shadow:0 12px 40px #8f65df55;
+}
+.camera-review-bottom button span{margin-left:12px;font-size:20px}
+.review-sound-panel{
+ position:absolute;z-index:6;left:12px;right:12px;bottom:calc(92px + env(safe-area-inset-bottom));
+ padding:16px;border:1px solid #ffffff28;border-radius:22px;background:#13111deF;
+ backdrop-filter:blur(24px);box-shadow:0 16px 55px #000b;animation:reviewSheetIn .22s ease both
+}
+.review-sound-panel.hidden{display:none}
+.review-sound-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.review-sound-head b{font-size:14px}
+.review-sound-head button{width:34px;height:34px;border-radius:50%;background:#ffffff12;color:#fff;font-size:22px}
+.review-sound-panel label{display:grid;grid-template-columns:1fr auto;gap:8px;margin:12px 0;color:#e6dff1;font-size:11px;font-weight:700}
+.review-sound-panel label output{color:#c8adff}
+.review-sound-panel input[type=range]{grid-column:1/-1;width:100%;accent-color:#bd9cff;touch-action:pan-y}
+.review-music-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0;padding-top:10px;border-top:1px solid #ffffff17;font-size:11px}
+.review-music-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfc5df}
+.review-music-row button{flex:none;padding:9px 12px;border-radius:12px;background:#33264b;color:#e4d6ff;font-size:10px;font-weight:800}
+.review-filter-row{display:grid;gap:8px;margin-top:12px;font-size:11px}
+.review-filter-row>div{display:flex;gap:6px;overflow:auto}
+.review-filter-row button{padding:8px 10px;border:1px solid #ffffff20;border-radius:12px;background:#ffffff0b;color:#d8d0e4;font-size:9px;white-space:nowrap}
+.review-filter-row button.active{background:#a17be544;border-color:#c8aaff;color:#fff}
+.publish-details-screen{z-index:11;overflow-y:auto;padding: max(18px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom));background:radial-gradient(ellipse at 90% 0%,#35234c 0,transparent 45%),#0b0911}
+.publish-details-screen>header{display:flex;align-items:center;gap:14px;margin:8px 0 26px}
+.publish-details-screen>header>button{width:44px;height:44px;border:1px solid #ffffff24;border-radius:50%;background:#ffffff0c;color:#fff;font-size:26px}
+.publish-details-screen>header small{font-size:9px;letter-spacing:1.5px;color:#bba1ed;font-weight:900}
+.publish-details-screen>header h2{font-size:25px;margin:3px 0 0}
+.publish-caption-label{display:block;color:#d8cfe5;font-size:12px;font-weight:800}
+.publish-details-screen textarea{width:100%;min-height:105px;max-height:180px;margin-top:9px;padding:14px;border:1px solid #ffffff20;border-radius:16px;background:#ffffff0a;color:#fff;resize:vertical;font:inherit}
+.publish-audience-title{margin:22px 0 10px;font-size:12px;font-weight:900;color:#eee7f8}
+.publish-audience{display:grid;gap:8px}
+.publish-audience label{position:relative;display:grid;grid-template-columns:42px 1fr;grid-template-rows:auto auto;align-items:center;column-gap:10px;padding:13px;border:1px solid #ffffff1d;border-radius:15px;background:#ffffff08;cursor:pointer}
+.publish-audience input{position:absolute;opacity:0}
+.publish-audience label:has(input:checked){border-color:#b99aff;background:#a37be522;box-shadow:inset 0 0 0 1px #b99aff55}
+.publish-audience label>span{grid-row:1/3;width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#ffffff0c;font-size:19px}
+.publish-audience label b{font-size:12px}
+.publish-audience label small{font-size:10px;color:#aaa0ba}
+.publish-story-option{display:flex;align-items:center;justify-content:space-between;width:100%;margin:14px 0;padding:15px;border:1px solid #ffffff1d;border-radius:15px;background:#ffffff08;color:#eee;font-size:12px;font-weight:800}
+.publish-story-option span{font-size:10px;color:#b8a6d4}
+.publish-story-option.selected{border-color:#b99aff;background:#a37be522}
+.publish-submit-btn{height:54px;border-radius:16px;justify-content:center!important;font-weight:900}
+.publish-details-screen .publish-status{color:#d3c2ef;font-size:11px;margin:10px 0}
+.camera-composer .camera-bottom,.camera-composer .camera-mode-row,.camera-composer .camera-zoom,.camera-composer .camera-mask-picker,.camera-composer .camera-sound-pill,.camera-composer .camera-topline,.camera-composer .camera-exit{
+ transition:opacity .18s,transform .22s
+}
+.camera-review-screen:not(.hidden)~.camera-bottom{opacity:0}
+.camera-modal.camera-opening .camera-composer{animation:cameraOpen .28s cubic-bezier(.2,.8,.2,1) both}
+.camera-review-screen.review-exit{animation:reviewFadeOut .15s ease both}
+.view.view-enter{animation:tabEnter .24s cubic-bezier(.2,.75,.25,1) both}
+.nav-item,.nav-create-btn,.create-btn,.icon-btn,.camera-gallery-btn,.capture-shutter,.camera-mode-switch button,.camera-mask{
+ touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none
+}
+.capture-shutter{width:74px;height:74px;border:4px solid #fff;background:#ffffff22;box-shadow:0 0 0 5px #ffffff14,0 8px 28px #0009;transition:transform .14s,background .18s}
+.capture-shutter:active{transform:scale(.92)}
+.capture-shutter span{width:56px;height:56px;transition:transform .18s,border-radius .18s}
+.capture-shutter.recording span{transform:scale(.78)}
+.camera-mode-switch{box-shadow:0 8px 28px #0008}
+.camera-mode-switch button{min-width:72px;min-height:38px;transition:background .18s,color .18s,transform .18s}
+.camera-mask-picker{box-shadow:0 8px 30px #0007}
+.camera-mask{touch-action:manipulation}
+.profile-cover{position:relative;overflow:hidden;background-size:220% 220%;animation:coverGradient 14s ease infinite alternate}
+.profile-cover:after{content:"";position:absolute;inset:-45%;pointer-events:none;background:linear-gradient(115deg,transparent 38%,#ffffff20 48%,transparent 58%);transform:translateX(-60%);animation:coverShimmer 8s ease-in-out infinite}
+.cover-edit{position:relative;z-index:1}
+@keyframes reviewFadeIn{from{opacity:0;transform:scale(1.015)}to{opacity:1;transform:scale(1)}}
+@keyframes reviewFadeOut{to{opacity:0;transform:scale(.99)}}
+@keyframes reviewSheetIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cameraOpen{from{opacity:.65;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
+@keyframes tabEnter{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@keyframes coverGradient{from{background-position:0% 30%}to{background-position:100% 70%}}
+@keyframes coverShimmer{0%,35%{transform:translateX(-60%)}70%,100%{transform:translateX(60%)}}
+@media(max-width:760px){
+ .camera-review-top{top:max(10px,env(safe-area-inset-top));left:12px;right:12px}
+ .camera-review-bottom{padding-left:18px;padding-right:18px}
+ .review-sound-panel{left:8px;right:8px;padding:13px}
+ .publish-details-screen{padding-left:15px;padding-right:15px}
+ .camera-review-media img,.camera-review-media video{object-fit:contain}
+ .capture-shutter{width:68px;height:68px}
+ .capture-shutter span{width:50px;height:50px}
+}
+@media(prefers-reduced-motion:reduce){
+ .camera-review-screen,.camera-review-media img,.view.view-enter,.profile-cover,.profile-cover:after{animation:none!important;transition:none!important}
+}

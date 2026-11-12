@@ -21,7 +21,7 @@ window.addEventListener('unhandledrejection',event=>{
 const toast=(m)=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)};
 const authStatus=(m,err=false)=>{$('authStatus').textContent=m;$('authStatus').style.color=err?'#ff9dba':'#9debd6'};
 const setAuth=(mode)=>{authMode=mode;['loginForm','signupForm','verifyForm','resetForm','newPasswordForm'].forEach(id=>$(id).classList.add('hidden'));$(mode+'Form').classList.remove('hidden');$('auth').classList.remove('hidden');$('app').classList.add('hidden');$('authStatus').textContent='';$('authSwitch').classList.toggle('hidden',mode==='verify'||mode==='reset'||mode==='newPassword');$('authTitle').textContent=mode==='signup'?'Создай свой мир.':mode==='verify'?'Проверь почту.':mode==='reset'?'Восстановим доступ.':mode==='newPassword'?'Новый пароль.':'С возвращением.';$('authSub').textContent=mode==='signup'?'Присоединяйся к PIXY.':mode==='verify'?'Мы отправили тебе код подтверждения.':mode==='reset'?'Отправим код для восстановления.':mode==='newPassword'?'Придумай новый надёжный пароль.':'Войди в свой мир PIXY.';$('authSwitch').innerHTML=mode==='signup'?'Уже есть аккаунт? <button id="showLogin">Войти</button>':mode==='login'?'Впервые здесь? <button id="showSignup">Создать аккаунт</button>':'<button id="backLogin">← Вернуться ко входу</button>';if($('showLogin'))$('showLogin').onclick=()=>setAuth('login');if($('showSignup'))$('showSignup').onclick=()=>setAuth('signup');if($('backLogin'))$('backLogin').onclick=()=>setAuth('login')};
-function showApp(){initIncomingCallListeners();initializeActivitySeen();setupActivityRealtime(); $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent='';$('profileAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet();loadNotifications();refreshChatBadge()}
+function showApp(){initIncomingCallListeners();$('enableCallNotifications')?.classList.toggle('hidden',!('Notification' in window)||Notification.permission==='granted');initializeActivitySeen();setupActivityRealtime(); $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent='';$('profileAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet();loadNotifications();refreshChatBadge()}
 function nav(view){
  $('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');
  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
@@ -105,6 +105,10 @@ $('signOutProfile')?.addEventListener('click',signOutOfPixy);
 $('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu');menu.classList.remove('hidden');$('profileMoreBtn').setAttribute('aria-expanded','true');});
 $('profileMoreClose')?.addEventListener('click',()=>{$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');});
 $('refreshNotifications')?.addEventListener('click',loadNotifications);
+$('enableCallNotifications')?.addEventListener('click',async()=>{
+ if(!('Notification' in window))return toast('Этот браузер не поддерживает уведомления.');
+ try{const permission=await Notification.requestPermission();toast(permission==='granted'?'Уведомления о звонках включены.':'Разрешение на уведомления не выдано.');$('enableCallNotifications').classList.toggle('hidden',permission==='granted')}catch(err){toast('Не удалось включить уведомления.')}
+});
 document.addEventListener('click',e=>{if(!e.target.closest('.profile-actions')){$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false')}});
 
 let activityRealtimeChannel=null,activityToastTimer=null;
@@ -376,14 +380,22 @@ function startCallTone(kind){
  const playPattern=()=>{
   if(!pixyAudioContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;pixyAudioContext=new AC()}
   const ctx=pixyAudioContext;if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-  const freqs=kind==='incoming'?[659,784]:[425,0];
-  freqs.forEach((freq,i)=>{if(!freq)return;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.07,ctx.currentTime+.04);gain.gain.setValueAtTime(.07,ctx.currentTime+.28);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.34);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.92);callToneOscillators.push(osc)});
+  const incoming=kind==='incoming',freqs=incoming?[659,784]:[425];
+  freqs.forEach((freq,i)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain(),now=ctx.currentTime;
+   osc.type='sine';osc.frequency.value=freq;
+   gain.gain.setValueAtTime(.0001,now);
+   gain.gain.exponentialRampToValueAtTime(incoming?.065:.075,now+.06);
+   gain.gain.setValueAtTime(incoming?.065:.075,now+(incoming?1.05:1.75));
+   gain.gain.exponentialRampToValueAtTime(.0001,now+(incoming?1.28:1.95));
+   osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+(incoming?1.32:2.0));callToneOscillators.push(osc);
+  });
  };
- playPattern();callToneTimer=setInterval(playPattern,kind==='incoming'?2600:3600);
+ playPattern();callToneTimer=setInterval(playPattern,kind==='incoming'?3200:6000);
 }
 
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
-let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='',callInboxChannel=null;
+let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='',callInboxChannel=null,callPeerReadyResolve=null,callPeerReadyTimer=null;
 
 function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);document.body.classList.toggle('call-active',!!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';const av=$('callAvatar');av.textContent=(callPeerAvatarUrl?'':(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase());try{const u=new URL(callPeerAvatarUrl);av.style.backgroundImage=u.protocol==='https:'?'url("'+u.href.replaceAll('"','%22')+'")':'';av.style.backgroundSize='cover';av.style.backgroundPosition='center'}catch(_){av.style.backgroundImage=''}}
 async function loadCallPeerProfile(uid,fallback){try{const {data}=await sb.from('profiles').select('display_name,avatar_url').eq('id',uid).maybeSingle();callPeerName=data?.display_name||fallback||'Контакт';callPeerAvatarUrl=data?.avatar_url||''}catch(_){callPeerName=fallback||'Контакт';callPeerAvatarUrl=''}}
@@ -402,11 +414,18 @@ async function ensureCallChannel(cid=activeConversation){
  if(!cid)throw new Error('Сначала открой переписку.');
  const ch=await subscribeCallChannel(cid);activeCallChannel=ch;callChannelConversation=cid;return ch;
 }
+function showIncomingCallNotification(invite){
+ if(!document.hidden||!('Notification' in window)||Notification.permission!=='granted')return;
+ try{
+  const n=new Notification('Входящий звонок PIXY',{body:'Тебе звонят. Нажми, чтобы открыть экран звонка.',tag:'pixy-call-'+invite.id,requireInteraction:true});
+  n.onclick=()=>{try{window.focus();n.close()}catch(_){}};
+ }catch(err){console.warn('PIXY call notification:',err)}
+}
 async function initIncomingCallListeners(){
  if(!sb||!user)return;
  if(callInboxChannel)try{await sb.removeChannel(callInboxChannel)}catch(_){}
  callInboxChannel=sb.channel('pixy-call-invites-'+user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'call_invites',filter:'callee_id=eq.'+user.id},async payload=>{
-  const invite=payload.new;if(!invite?.conversation_id||!invite?.caller_id||callDirection||callPeer)return;
+  const invite=payload.new;if(!invite?.conversation_id||!invite?.caller_id||callDirection||callPeer)return;showIncomingCallNotification(invite);
   try{const {data:blocked}=await sb.from('user_blocks').select('blocked_id').eq('owner_id',user.id).eq('blocked_id',invite.caller_id).maybeSingle();if(blocked)return;
    const {data:member}=await sb.from('conversation_members').select('conversation_id').eq('conversation_id',invite.conversation_id).eq('user_id',user.id).maybeSingle();if(!member)return;
    const ch=await subscribeCallChannel(invite.conversation_id);activeCallChannel=ch;callChannelConversation=invite.conversation_id;activeConversation=invite.conversation_id;activeChatUser=invite.caller_id;
@@ -433,7 +452,16 @@ async function startVoiceCall(){
  if(callDirection||callPeer)return toast('Звонок уже идёт.');
  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return toast('Браузер не поддерживает интернет-звонки.');
  callDirection='outgoing';await loadCallPeerProfile(activeChatUser,$('chatTitle').textContent||'Контакт');callUi(true,'Вызов…');startCallTone('outgoing');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
- try{await ensureCallChannel(activeConversation);const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});if(inviteError)throw inviteError;const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
+ try{
+  await ensureCallChannel(activeConversation);
+  const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});
+  if(inviteError)throw inviteError;
+  await new Promise((resolve,reject)=>{
+   callPeerReadyResolve=resolve;
+   callPeerReadyTimer=setTimeout(()=>{if(callPeerReadyResolve===resolve){callPeerReadyResolve=null;reject(new Error('Собеседник не подключился к звонку.'))}},15000);
+  });
+  const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})
+}
  catch(err){console.error('PIXY call start:',err);toast('Не удалось начать звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
 }
 async function acceptVoiceCall(){
@@ -445,14 +473,15 @@ async function acceptVoiceCall(){
 async function handleCallSignal(s,cid=callChannelConversation){
  if(!s||s.from===user?.id)return;
  if(cid){activeCallChannel=callChannels.get(cid)||activeCallChannel;callChannelConversation=cid;}
- if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';activeConversation=cid||activeConversation;activeChatUser=s.from;await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');startCallTone('incoming');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden')}
+ if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';activeConversation=cid||activeConversation;activeChatUser=s.from;await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');startCallTone('incoming');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden');sendCallSignal('ready').catch(console.warn)}
+ else if(s.type==='ready'){if(callPeerReadyTimer){clearTimeout(callPeerReadyTimer);callPeerReadyTimer=null}const resolve=callPeerReadyResolve;callPeerReadyResolve=null;resolve?.()}
  else if(s.type==='offer'){stopCallTone();callPendingOffer=s.description;if(!callDirection){callDirection='incoming';await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden')}if($('callAcceptBtn').dataset.acceptRequested==='1')await acceptVoiceCall()}
  else if(s.type==='answer'&&callPeer){stopCallTone();try{await callPeer.setRemoteDescription(new RTCSessionDescription(s.description));for(const c of callPendingIce.splice(0)){await callPeer.addIceCandidate(new RTCIceCandidate(c))}}catch(err){console.warn(err)}}
  else if(s.type==='ice'){if(callPeer?.remoteDescription){try{await callPeer.addIceCandidate(new RTCIceCandidate(s.candidate))}catch(err){console.warn(err)}}else callPendingIce.push(s.candidate)}
  else if(['hangup','decline','busy'].includes(s.type)){stopCallTone();await endVoiceCall(false);toast(s.type==='busy'?'Собеседник уже разговаривает.':s.type==='decline'?'Вызов отклонён.':'Звонок завершён.')}
 }
 async function endVoiceCall(notify=true){
- stopCallTone();playPixyBeep('call-end');if(notify&&activeCallChannel){try{await sendCallSignal(callDirection==='incoming'?'decline':'hangup')}catch(_){}}
+ stopCallTone();if(callPeerReadyTimer){clearTimeout(callPeerReadyTimer);callPeerReadyTimer=null}callPeerReadyResolve=null;playPixyBeep('call-end');if(notify&&activeCallChannel){try{await sendCallSignal(callDirection==='incoming'?'decline':'hangup')}catch(_){}}
  if(callTimer){clearInterval(callTimer);callTimer=null}if(callPeer){try{callPeer.close()}catch(_){}callPeer=null}if(callLocalStream){callLocalStream.getTracks().forEach(t=>t.stop());callLocalStream=null}
  const a=$('callRemoteAudio');a.pause();a.srcObject=null;a.muted=false;callPendingOffer=null;callPendingIce=[];callStartedAt=0;callMuted=false;callSpeakerOn=true;callDirection='';
  $('callTimer').textContent='00:00';$('callMuteBtn').textContent='Выключить микрофон';$('callSpeakerBtn').textContent='Выключить громкую связь';$('callAcceptBtn').dataset.acceptRequested='0';callUi(false,'');

@@ -234,7 +234,15 @@ function bindCustomVideoControls(root){
   if(!video)return;
   video.muted=!video.muted;
   const music=wrap.querySelector('audio[data-video-audio]');
-  if(music)music.muted=video.muted;
+  if(music){
+   music.muted=video.muted;
+   if(video.muted)music.pause();
+   else{
+    if(video.paused)video.play().catch(()=>{});
+    try{music.currentTime=video.currentTime}catch(_){}
+    music.play().catch(err=>{console.warn('PIXY music playback:',err);toast('Не удалось запустить музыкальную дорожку этого видео.')});
+   }
+  }else if(!video.muted&&video.paused)video.play().catch(()=>{});
   mute.innerHTML=videoSoundIcon(video.muted);
   mute.setAttribute('aria-label',video.muted?'Включить звук':'Выключить звук');
   mute.setAttribute('aria-pressed',String(video.muted));
@@ -252,6 +260,13 @@ function bindCustomVideoControls(root){
  });
 }
 let pixyMediaObserver=null,pixyActiveVideo=null;
+const pixyVisibleVideoRatios=new Map();
+function pausePixyVideo(video){
+ if(!video)return;
+ video.pause();
+ const audio=video.closest('.post-video-wrap')?.querySelector('audio[data-video-audio]');
+ audio?.pause();
+}
 function observeVisibleMedia(root){
  if(!root||!('IntersectionObserver'in window))return;
  if(!pixyMediaObserver){
@@ -259,22 +274,7 @@ function observeVisibleMedia(root){
    entries.forEach(entry=>{
     const el=entry.target;
     if(el.tagName==='VIDEO'){
-     if(entry.isIntersecting&&entry.intersectionRatio>.62){
-      if(pixyActiveVideo&&pixyActiveVideo!==el){
-       pixyActiveVideo.pause();
-       const previousAudio=pixyActiveVideo.closest('.post-video-wrap')?.querySelector('audio[data-video-audio]');
-       previousAudio?.pause();
-      }
-      pixyActiveVideo=el;
-      el.preload='auto';
-      if(el.readyState===0)el.load();
-      el.play().catch(()=>{el.muted=true;el.play().catch(()=>{})});
-     }else{
-      el.pause();
-      if(pixyActiveVideo===el)pixyActiveVideo=null;
-      const audio=el.closest('.post-video-wrap')?.querySelector('audio[data-video-audio]');
-      audio?.pause();
-     }
+     pixyVisibleVideoRatios.set(el,entry.isIntersecting?entry.intersectionRatio:0);
     }else if(el.matches('[data-carousel]')){
      const audio=el.parentElement?.querySelector('[data-carousel-music]');
      if(entry.isIntersecting&&entry.intersectionRatio>.62){
@@ -282,11 +282,28 @@ function observeVisibleMedia(root){
      }else audio?.pause();
     }
    });
-  },{threshold:[0,.62,.85]});
+   let candidate=null,best=.35;
+   for(const [video,ratio] of pixyVisibleVideoRatios){
+    if(!video.isConnected){pixyVisibleVideoRatios.delete(video);continue}
+    if(ratio>best){best=ratio;candidate=video}
+   }
+   if(candidate!==pixyActiveVideo){
+    pausePixyVideo(pixyActiveVideo);
+    pixyActiveVideo=candidate;
+   }
+   if(candidate){
+    candidate.preload='auto';
+    if(!candidate.dataset.mediaLoadStarted){candidate.dataset.mediaLoadStarted='1';candidate.load()}
+    if(candidate.paused)candidate.play().catch(err=>console.warn('PIXY video playback:',err));
+   }else if(pixyActiveVideo){
+    pausePixyVideo(pixyActiveVideo);pixyActiveVideo=null;
+   }
+  },{threshold:[0,.2,.35,.5,.7,.9]});
  }
  root.querySelectorAll('video[data-post-video], [data-carousel]').forEach(el=>{
   if(el.dataset.mediaObserved)return;
   el.dataset.mediaObserved='1';
+  if(el.tagName==='VIDEO')el.preload='none';
   pixyMediaObserver.observe(el);
  });
 }
@@ -674,7 +691,7 @@ $('feed').addEventListener('click',async e=>{
 let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,recordCountdownTimer=null,recordStartedAt=0,cameraFacing='environment',captureMode='photo',cameraBusy=false;
 let selectedMusicId='',pickerMusicId='',recordAudioContext=null,recordMusicElement=null,cameraZoomHardware=false,zoomCanvasStream=null,zoomRenderFrame=0;
 function stopRecordingAudio(){
- if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.currentTime=0}catch(_){}recordMusicElement=null}
+ if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.removeAttribute('src');recordMusicElement.load()}catch(_){}recordMusicElement=null}
  if(recordAudioContext){const ctx=recordAudioContext;recordAudioContext=null;try{ctx.close()}catch(_){}}
 }
 function stopCamera(){
@@ -955,10 +972,41 @@ $('postForm').addEventListener('submit',async e=>{
  }
 });
 async function makeRecordingStream(){
- // Исходный микрофон записывается отдельно; музыка накладывается после записи
- // отдельной дорожкой, чтобы громкость двух источников можно было менять раздельно.
  const zoomTrack=makeZoomedVideoTrack();
- return new MediaStream([zoomTrack,...cameraStream.getAudioTracks()]);
+ const music=availableMusic.find(t=>t.id===selectedMusicId);
+ const micTracks=cameraStream?.getAudioTracks?.()||[];
+ if(!music)return new MediaStream([zoomTrack,...micTracks]);
+ const AC=window.AudioContext||window.webkitAudioContext;
+ if(!AC)throw new Error('Браузер не поддерживает запись выбранной музыки. Попробуй другой браузер.');
+ try{
+  recordAudioContext=new AC();
+  await recordAudioContext.resume();
+  const ctx=recordAudioContext,destination=ctx.createMediaStreamDestination();
+  if(micTracks.length){
+   const mic=ctx.createMediaStreamSource(new MediaStream(micTracks));
+   const micGain=ctx.createGain();
+   micGain.gain.value=Math.max(0,Math.min(1,Number($('originalVolume')?.value??100)/100));
+   mic.connect(micGain);micGain.connect(destination);
+  }
+  const audio=document.createElement('audio');
+  audio.crossOrigin='anonymous';audio.preload='auto';audio.loop=true;audio.src=music.audio_url;
+  recordMusicElement=audio;
+  await new Promise((resolve,reject)=>{
+   if(audio.readyState>=3)return resolve();
+   const timer=setTimeout(()=>reject(new Error('Музыкальный трек не успел загрузиться. Попробуй выбрать его ещё раз.')),10000);
+   audio.addEventListener('canplay',()=>{clearTimeout(timer);resolve()},{once:true});
+   audio.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('Не удалось загрузить выбранную музыку.'))},{once:true});
+   audio.load();
+  });
+  const musicSource=ctx.createMediaElementSource(audio),musicGain=ctx.createGain();
+  musicGain.gain.value=Math.max(0,Math.min(1,Number($('musicVolume')?.value??70)/100));
+  musicSource.connect(musicGain);musicGain.connect(destination);musicGain.connect(ctx.destination);
+  await audio.play();
+  return new MediaStream([zoomTrack,...destination.stream.getAudioTracks()]);
+ }catch(error){
+  stopRecordingAudio();
+  throw error;
+ }
 }
 function stopVideoRecording(auto=false){
  if(mediaRecorder?.state!=='recording')return;

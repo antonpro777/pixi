@@ -147,13 +147,14 @@ async function loadNotifications(){
 }
 async function loadProfile(){
  if(!sb||!user)return;
- const meta=user.user_metadata||{};
- profile={id:user.id,display_name:meta.display_name||'Новый пользователь',username:meta.username||('pixy_'+user.id.slice(0,8)),bio:'',avatar_url:null,profile_background:'Aurora',is_verified:false};
+ const ownerId=user.id,meta=user.user_metadata||{};
+ profile={id:ownerId,display_name:meta.display_name||'Новый пользователь',username:meta.username||('pixy_'+ownerId.slice(0,8)),bio:'',avatar_url:null,profile_background:'Aurora',is_verified:false};
  try{
-  const result=await withTimeout(sb.from('profiles').select('*').eq('id',user.id).maybeSingle(),5000,'Профиль загружается дольше обычного');
+  const result=await withTimeout(sb.from('profiles').select('*').eq('id',ownerId).maybeSingle(),5000,'Профиль загружается дольше обычного');
+  if(user?.id!==ownerId)return;
   if(result.error)throw result.error;
   if(result.data)profile=result.data;
- }catch(error){console.warn('PIXY profile fallback:',error)}
+ }catch(error){if(user?.id===ownerId)console.warn('PIXY profile fallback:',error)}
 }
 function renderPostMedia(p){
  const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];
@@ -922,7 +923,16 @@ async function deleteOwnPost(id){
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-delete-post]');if(b){e.preventDefault();e.stopPropagation();deleteOwnPost(b.dataset.deletePost)}});
 
-async function loadProfilePosts(){if(!sb||!user)return;const {data,error}=await sb.from('posts').select('id,media_url,media_type').eq('author_id',user.id).order('created_at',{ascending:false});if(error){console.warn('PIXY profile posts:',error);return} $('postCount').textContent=data.length;$('profileGrid').innerHTML=data.length?data.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<video src="'+safe(p.media_url)+'" controls playsinline></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>'}
+async function loadProfilePosts(){
+ if(!sb||!user)return;
+ const ownerId=user.id;
+ const {data,error}=await sb.from('posts').select('id,media_url,media_type').eq('author_id',ownerId).order('created_at',{ascending:false});
+ if(user?.id!==ownerId)return;
+ if(error){console.warn('PIXY profile posts:',error);return}
+ const posts=data||[];
+ $('postCount').textContent=posts.length;
+ $('profileGrid').innerHTML=posts.length?posts.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<video src="'+safe(p.media_url)+'" controls playsinline></video>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join(''):'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>';
+}
 
 const bgColors={aurora:['#38255d','#bb85f3'],sunset:['#64364f','#f3a17c'],ocean:['#173b55','#71c6dc'],candy:['#683b6c','#ee91ce'],forest:['#1d5146','#84d2ad'],cosmic:['#20214f','#9d9bff'],peach:['#794b3f','#ffc49d'],lavender:['#453d70','#c6b3ff'],neon:['#222044','#ff75b7'],silver:['#424252','#c9c9df']};
 const giftEmoji={moon:'🌙',heart:'💜',planet:'🪐',teddy:'🧸',bloom:'🌸',music:'🎧',butterfly:'🦋',crystal:'💎',cat:'🐱',ribbon:'🎀',rocket:'🚀',crown:'👑',unicorn:'🦄',trophy:'🏆',stardust:'✨'};

@@ -538,7 +538,7 @@ function setupCameraZoom(){
 function updateZoomControl(){
  const input=$('cameraZoom'),value=Number(input?.value)||1,min=Number(input?.min)||1,max=Number(input?.max)||4,ratio=max===min?0:(value-min)/(max-min);
  $('cameraZoomValue').textContent=value.toFixed(1)+'×';
- $('cameraZoomFill').style.width=(ratio*100)+'%';$('cameraZoomThumb').style.left=(ratio*100)+'%';
+ $('cameraZoomFill').style.width=(ratio*100)+'%';
  $('cameraZoomScrub').setAttribute('aria-valuenow',value.toFixed(1));
 }
 async function applyCameraZoom(value){
@@ -597,9 +597,17 @@ function startCameraFxRender(){
      }else if(cameraMask==='twist'){
       sx=x+Math.sin(dy*9)*18*(1-r);sy=y+Math.sin(dx*7)*13*(1-r);
      }else if(cameraMask==='eyes'){
-      for(const ex of [.41,.59]){
-       const ex0=w*ex,ey0=h*.43,er=w*.065,ed=Math.hypot((x-ex0)/er,(y-ey0)/(er*.72));
-       if(ed<1){const f=1-.46*(1-ed*ed);sx=ex0+(x-ex0)*f;sy=ey0+(y-ey0)*f;break}
+      // Сильное увеличение областей глаз: пиксели берутся из меньшего круга,
+      // поэтому реальные глаза в кадре становятся заметно крупнее, без наклеек.
+      for(const ex of [.395,.605]){
+       const ex0=w*ex,ey0=h*.425,er=w*.088,eyr=er*.72;
+       const ed=Math.hypot((x-ex0)/er,(y-ey0)/eyr);
+       if(ed<1){
+        const bulge=1-.64*(1-ed*ed)*(1-ed*ed);
+        sx=ex0+(x-ex0)*bulge;
+        sy=ey0+(y-ey0)*bulge;
+        break;
+       }
       }
      }
      const ix=Math.max(0,Math.min(w-1,Math.round(sx))),iy=Math.max(0,Math.min(h-1,Math.round(sy))),a=(y*w+x)*4,b=(iy*w+ix)*4;

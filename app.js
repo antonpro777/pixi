@@ -936,9 +936,11 @@ $('postForm').addEventListener('submit',async e=>{
    media_url:uploaded[0].url,
    media_type:isVideo?'video':'image',
    media_items:isVideo?[]:uploaded,
-   music_url:track?track.audio_url:null,
+   // Camera recordings already contain the selected music mixed into the video audio.
+   // Do not attach a second music player or the published post will echo.
+   music_url:track&&!isRecordedVideo?track.audio_url:null,
    music_title:track?.title||null,
-   original_volume:Number($('originalVolume').value)/100,
+   original_volume:isRecordedVideo?1:Number($('originalVolume').value)/100,
    music_volume:Number($('musicVolume').value)/100,
    media_filter:isVideo?reviewFilter:'none',
    visibility:document.querySelector('input[name="postAudience"]:checked')?.value||'public'

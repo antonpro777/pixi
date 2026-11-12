@@ -32,7 +32,7 @@ function nav(view){
  $('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';
  if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='notifications'&&user){localStorage.setItem(activitySeenKey(),String(Date.now()));setActivityBadge(0);loadNotifications();}if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();
 }
-document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c){if(c.dataset.close==='composerModal'&&typeof stopCamera==='function')stopCamera();$(c.dataset.close).classList.add('hidden')}});
+document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c){if(c.dataset.close==='composerModal'&&typeof stopCamera==='function'){stopCamera();stopComposerPreviewAudio();}$(c.dataset.close).classList.add('hidden')}});
 $('showSignup').onclick=()=>setAuth('signup');
 $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();
@@ -696,6 +696,12 @@ function stopRecordingAudio(){
  if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.removeAttribute('src');recordMusicElement.load()}catch(_){}recordMusicElement=null}
  if(recordAudioContext){const ctx=recordAudioContext;recordAudioContext=null;try{ctx.close()}catch(_){}}
 }
+function stopComposerPreviewAudio(){
+ for(const id of ['musicPickerPreview','reviewMusicAudio']){
+  const audio=$(id);if(!audio)continue;
+  try{audio.pause();audio.currentTime=0;audio.removeAttribute('src');audio.load()}catch(_){}
+ }
+}
 function stopCamera(){
  stopZoomRender();
  if(captureDelayTimer){clearInterval(captureDelayTimer);captureDelayTimer=null}
@@ -936,7 +942,7 @@ $('postForm').addEventListener('submit',async e=>{
   if(status)status.textContent='Опубликовано!';
   const publishedAsStory=reviewStoryMode;
   stopCamera();
-  const reviewMusic=$('reviewMusicAudio');if(reviewMusic)reviewMusic.pause();
+  stopComposerPreviewAudio();
   $('composerModal').classList.add('hidden');
   $('soundPicker').classList.add('hidden');
   $('cameraPublishPanel').classList.add('hidden');$('cameraReviewScreen').classList.add('hidden');$('publishDetailsScreen').classList.add('hidden');

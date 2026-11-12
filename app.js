@@ -527,7 +527,7 @@ function stopCamera(){
 }
 
 let cameraMask='none',lastFxFrameAt=0;
-let faceLandmarker=null,faceLandmarkerLoading=null,faceLandmarks=null,lastFaceDetectAt=0;
+let faceLandmarker=null,faceLandmarkerLoading=null,faceLandmarks=null,lastFaceDetectAt=0,cameraStartPromise=null;
 async function loadFaceLandmarker(){
  if(faceLandmarker||faceLandmarkerLoading)return faceLandmarkerLoading;
  faceLandmarkerLoading=(async()=>{
@@ -604,12 +604,13 @@ function startCameraFxRender(){
    }
    const z=cameraZoomHardware?1:Math.max(1,Number($('cameraZoom').value)||1),sw=video.videoWidth/z,sh=video.videoHeight/z;
    ctx.drawImage(video,(video.videoWidth-sw)/2,(video.videoHeight-sh)/2,sw,sh,0,0,w,h);
-   let trackedEyes=null;
+   let trackedEyes=null,trackedEyeRadius=w*.2;
    if(cameraMask==='eyes'){
     const cropX=(video.videoWidth-sw)/2,cropY=(video.videoHeight-sh)/2;
     if(faceLandmarks){
      const center=ids=>ids.reduce((a,id)=>({x:a.x+faceLandmarks[id].x/ids.length,y:a.y+faceLandmarks[id].y/ids.length}),{x:0,y:0});
      trackedEyes=[center([33,133,159,145]),center([362,263,386,374])].map(p=>({x:(p.x*video.videoWidth-cropX)/sw*w,y:(p.y*video.videoHeight-cropY)/sh*h}));
+     trackedEyeRadius=Math.hypot(trackedEyes[1].x-trackedEyes[0].x,trackedEyes[1].y-trackedEyes[0].y);
     }else trackedEyes=[{x:w*.405,y:h*.405},{x:w*.595,y:h*.405}];
    }
    if(cameraMask!=='none'){
@@ -626,8 +627,7 @@ function startCameraFxRender(){
       sx=x+Math.sin(dy*9)*18*(1-r);sy=y+Math.sin(dx*7)*13*(1-r);
      }else if(cameraMask==='eyes'){
       for(const eye of trackedEyes||[]){
-       const eyeDistance=trackedEyes?.length===2?Math.hypot(trackedEyes[1].x-trackedEyes[0].x,trackedEyes[1].y-trackedEyes[0].y):w*.2;
-       const er=Math.max(w*.045,eyeDistance*.31),eyr=er*.78;
+       const er=Math.max(w*.045,trackedEyeRadius*.31),eyr=er*.78;
        const dxEye=(x-eye.x)/er,dyEye=(y-eye.y)/eyr,ed=Math.sqrt(dxEye*dxEye+dyEye*dyEye);
        if(ed<1){const falloff=(1-ed*ed)*(1-ed*ed),bulge=1-.76*falloff;sx=eye.x+(x-eye.x)*bulge;sy=eye.y+(y-eye.y)*bulge;break}
       }
@@ -654,16 +654,20 @@ function stopZoomRender(){
 }
 
 async function startCamera(){
- stopCamera();
- try{
-  cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});
-  const v=$('cameraPreview');v.srcObject=cameraStream;
-  await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});
-  await v.play();setupCameraZoom();loadFaceLandmarker();startCameraFxRender();$('cameraHint').textContent='Камера включена';
- }catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}
+ if(cameraStartPromise)return cameraStartPromise;
+ cameraStartPromise=(async()=>{
+  stopCamera();
+  try{
+   cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});
+   const v=$('cameraPreview');v.srcObject=cameraStream;
+   await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});
+   await v.play();setupCameraZoom();loadFaceLandmarker();startCameraFxRender();$('cameraHint').textContent='Камера включена';
+  }catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}
+ })();
+ try{return await cameraStartPromise}finally{cameraStartPromise=null}
 }
 function setCaptureMode(m){
- captureMode=m;$('postMode').value=m==='video'?'video':'single';
+ captureMode=m;$('postMode').value=m==='video'?'video':'single';$('captureShutter').dataset.mode=m;
  $('capturePhotoMode').classList.toggle('active',m==='photo');$('captureVideoMode').classList.toggle('active',m==='video');
  $('cameraHint').textContent=m==='video'?'Видео · до 20 секунд':'Фото';
 }

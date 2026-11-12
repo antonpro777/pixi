@@ -668,7 +668,7 @@ async function startCamera(){
    cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cameraFacing}},audio:true});
    const v=$('cameraPreview');v.srcObject=cameraStream;
    await new Promise((resolve,reject)=>{if(v.readyState>=2&&v.videoWidth)return resolve();v.onloadedmetadata=resolve;v.onerror=reject});
-   await v.play();setupCameraZoom();loadFaceLandmarker();startCameraFxRender();$('cameraHint').textContent='Камера включена';
+   await v.play();v.classList.remove('camera-preview-enter');void v.offsetWidth;v.classList.add('camera-preview-enter');setupCameraZoom();loadFaceLandmarker();startCameraFxRender();$('cameraHint').textContent='Камера включена';
   }catch(err){stopCamera();$('cameraHint').textContent='Камера недоступна';toast(err.message||'Разреши доступ к камере и микрофону.')}
  })();
  try{return await cameraStartPromise}finally{cameraStartPromise=null}
@@ -680,7 +680,7 @@ function setCaptureMode(m){
 }
 function openComposer(){
  if(!user)return toast('Сначала войди в PIXY.');
- $('composerModal').classList.remove('hidden');$('composerModal').classList.add('camera-opening');
+ $('composerModal').classList.remove('hidden');$('composerModal').classList.remove('camera-opening');void $('composerModal').offsetWidth;$('composerModal').classList.add('camera-opening');
  $('postFile').value='';selectedFiles=[];selectedFile=null;reviewStoryMode=false;reviewFilter='none';
  $('filePreview').innerHTML='';$('cameraReviewScreen').classList.add('hidden');$('publishDetailsScreen').classList.add('hidden');$('reviewSoundPanel').classList.add('hidden');
  $('cameraPublishPanel').classList.add('hidden');$('postCaption').value='';$('postMusic').value=selectedMusicId||'';
@@ -904,11 +904,13 @@ $('reviewBackBtn').onclick=()=>{
  if(!cameraStream)startCamera();else if(!$('cameraFxCanvas').width||!zoomCanvasStream)startCameraFxRender();
 };
 $('reviewNextBtn').onclick=()=>{
- $('cameraReviewScreen').classList.add('review-exit');
+ const video=$('filePreview').querySelector('video'),music=$('reviewMusicAudio');if(video)video.pause();if(music)music.pause();
+ $('reviewSoundPanel').classList.add('hidden');$('cameraReviewScreen').classList.add('review-exit');
  setTimeout(()=>{$('cameraReviewScreen').classList.add('hidden');$('cameraReviewScreen').classList.remove('review-exit');$('publishDetailsScreen').classList.remove('hidden');$('publishDetailsScreen').classList.add('review-enter')},150);
 };
 $('publishBackBtn').onclick=()=>{
  $('publishDetailsScreen').classList.add('hidden');$('cameraReviewScreen').classList.remove('hidden');$('cameraReviewScreen').classList.add('review-enter');
+ const video=$('filePreview').querySelector('video');if(video)video.play().catch(()=>{});
 };
 $('reviewSoundBtn').onclick=()=>{
  $('reviewSoundPanel').classList.toggle('hidden');

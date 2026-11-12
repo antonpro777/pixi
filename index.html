@@ -120,7 +120,7 @@
   <button class="primary-btn full-btn publish-submit-btn" type="submit">Опубликовать</button>
  </form>
 </div>
-<div id="cameraPublishPanel" class="camera-publish-panel hidden"></div>
+<div id="cameraPublishPanel" class="camera-publish-panel hidden"></div><select id="postMode" class="hidden" aria-hidden="true"><option value="single">Фото</option><option value="carousel">Слайд-шоу</option><option value="video">Видео</option></select>
 </div>
 <input id="postFile" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden><select id="postMusic" class="hidden" aria-hidden="true"><option value="">Без музыки</option></select>
 <div id="soundPicker" class="sound-picker hidden"><audio id="musicPickerPreview" preload="none"></audio><button class="sound-picker-scrim" type="button" data-sound-close></button><section class="sound-picker-sheet"><div class="sound-picker-grabber"></div><header><div><h3>Добавить звук</h3><p>Выбери трек для записи видео</p></div><button type="button" data-sound-close aria-label="Закрыть">×</button></header><div id="soundTrackList" class="sound-track-list"><p class="sound-empty">Загружаем музыку…</p></div><div class="sound-picker-footer"><button type="button" id="soundRemoveBtn">Без музыки</button><button type="button" id="soundUseBtn" disabled>Использовать трек</button></div></section></div>

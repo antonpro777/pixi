@@ -156,18 +156,25 @@ async function loadProfile(){
   if(result.data)profile=result.data;
  }catch(error){if(user?.id===ownerId)console.warn('PIXY profile fallback:',error)}
 }
+function mediaFilterCss(key){
+ return ({none:'none',warm:'saturate(1.25) sepia(.22)',mono:'grayscale(1)',dream:'saturate(.82) brightness(1.12) contrast(.9)'})[key]||'none';
+}
 function renderPostMedia(p){
  const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];
- if(p.media_type==='video')return '<div class="post-video-wrap"><video controls playsinline preload="metadata" '+(p.music_url?'muted data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
+ const filter=mediaFilterCss(p.media_filter),original=Math.max(0,Math.min(1,Number(p.original_volume??1))),musicVolume=Math.max(0,Math.min(1,Number(p.music_volume??.7)));
+ if(p.media_type==='video')return '<div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+original+'" data-music-volume="'+musicVolume+'" controls playsinline preload="metadata" style="filter:'+filter+'" '+(p.music_url?'muted data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
  const first=items[0]||{url:p.media_url};
- if(items.length>1)return '<div class="post-carousel" data-carousel data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+(p.music_url?'<button type="button" class="carousel-play-overlay" data-carousel-toggle>Нажмите, чтобы включить</button>':'')+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span><span class="carousel-hint">‹ Листай ›</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
- return '<img src="'+safe(first.url||p.media_url)+'" alt="Публикация">';
+ if(items.length>1)return '<div class="post-carousel" data-carousel data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" style="filter:'+filter+'" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+(p.music_url?'<button type="button" class="carousel-play-overlay" data-carousel-toggle>Нажмите, чтобы включить</button>':'')+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span><span class="carousel-hint">‹ Листай ›</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
+ return '<img style="filter:'+filter+'" src="'+safe(first.url||p.media_url)+'" alt="Публикация">';
 }
 function bindVideoAudio(root){
  if(!root)return;
- root.querySelectorAll('video[data-video-music]').forEach(video=>{
+ root.querySelectorAll('video[data-post-video]').forEach(video=>{
   if(video.dataset.audioBound)return;video.dataset.audioBound='1';
-  const audio=video.closest('.post-video-wrap')?.querySelector('audio[data-video-audio]');if(!audio)return;
+  video.volume=Math.max(0,Math.min(1,Number(video.dataset.originalVolume??1)));
+  const audio=video.closest('.post-video-wrap')?.querySelector('audio[data-video-audio]');
+  if(!audio)return;
+  audio.volume=Math.max(0,Math.min(1,Number(video.dataset.musicVolume??.7)));
   const sync=()=>{if(Math.abs(audio.currentTime-video.currentTime)>.35){try{audio.currentTime=video.currentTime}catch(_){}}};
   video.addEventListener('play',()=>{sync();audio.play().catch(()=>{})});
   video.addEventListener('pause',()=>audio.pause());
@@ -178,7 +185,7 @@ function bindVideoAudio(root){
 }
 async function loadFeed(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
+ const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){console.warn(error);toast('Не удалось загрузить ленту: '+error.message);return}
  const feed=$('feed');
  if(!data?.length){feed.innerHTML='<div class="empty-state"><div class="empty-icon">✧</div><h2>Лента только начинается</h2><p>Опубликуй первый момент и позови друзей в PIXY.</p></div>';return}
@@ -193,9 +200,9 @@ async function loadFeed(){
 }
 async function loadVideos(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
+ const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
- $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video controls playsinline '+(p.music_url?'muted data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
+ $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" controls playsinline style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'muted data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
  bindVideoAudio($('view-videos'));
 }
@@ -761,6 +768,9 @@ $('postForm').addEventListener('submit',async e=>{
    media_items:isVideo?[]:uploaded,
    music_url:track?track.audio_url:null,
    music_title:track?.title||null,
+   original_volume:Number($('originalVolume').value)/100,
+   music_volume:Number($('musicVolume').value)/100,
+   media_filter:reviewFilter,
    visibility:document.querySelector('input[name="postAudience"]:checked')?.value||'public'
   };
   if(status)status.textContent=reviewStoryMode?'Сохраняю историю…':'Сохраняю публикацию…';

@@ -390,9 +390,13 @@ async function loadChatList(){
  })));
  if(!inboxMessagesChannel){
   inboxMessagesChannel=sb.channel('pixy-inbox-'+user.id)
-   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},payload=>{
+   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},async payload=>{
     const message=payload.new;
-    if(message?.sender_id!==user.id&&message?.conversation_id!==activeConversation&&$('view-messages')&&!$('view-messages').classList.contains('hidden'))loadChatList();
+    const chatListVisible=$('chatPeoplePanel')&&!$('chatPeoplePanel').classList.contains('hidden');
+    if(message?.sender_id!==user.id&&message?.conversation_id!==activeConversation&&chatListVisible){
+     await sb.from('chat_hidden').delete().eq('owner_id',user.id).eq('conversation_id',message.conversation_id);
+     await loadChatList();
+    }
    }).subscribe();
  }
  for(const row of visibleRows){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY call subscription:',row.conversation_id,err)}}

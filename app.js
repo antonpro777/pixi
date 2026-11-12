@@ -770,7 +770,7 @@ $('postForm').addEventListener('submit',async e=>{
    music_title:track?.title||null,
    original_volume:Number($('originalVolume').value)/100,
    music_volume:Number($('musicVolume').value)/100,
-   media_filter:reviewFilter,
+   media_filter:isVideo?reviewFilter:'none',
    visibility:document.querySelector('input[name="postAudience"]:checked')?.value||'public'
   };
   if(status)status.textContent=reviewStoryMode?'Сохраняю историю…':'Сохраняю публикацию…';

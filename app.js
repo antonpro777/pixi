@@ -735,11 +735,16 @@ $('postForm').addEventListener('submit',async e=>{
    media_items:isVideo?[]:uploaded,
    music_url:track?track.audio_url:null,
    music_title:track?.title||null,
-   visibility:'public'
+   visibility:document.querySelector('input[name="postAudience"]:checked')?.value||'public'
   };
-  if(status)status.textContent='Сохраняю публикацию…';
-  const {error:insertError}=await sb.from('posts').insert(payload);
-  if(insertError)throw insertError;
+  if(status)status.textContent=reviewStoryMode?'Сохраняю историю…':'Сохраняю публикацию…';
+  if(reviewStoryMode){
+   const {error:storyError}=await sb.from('stories').insert({author_id:user.id,media_url:uploaded[0].url,media_type:isVideo?'video':'image'});
+   if(storyError)throw storyError;
+  }else{
+   const {error:insertError}=await sb.from('posts').insert(payload);
+   if(insertError)throw insertError;
+  }
   if(status)status.textContent='Опубликовано!';
   stopCamera();
   $('composerModal').classList.add('hidden');
@@ -749,7 +754,7 @@ $('postForm').addEventListener('submit',async e=>{
   $('postFile').value='';
   selectedFiles=[];selectedFile=null;
   toast('Публикация добавлена в PIXY!');
-  await Promise.all([loadFeed(),loadProfilePosts()]);
+  await Promise.all([loadFeed(),loadProfilePosts(),loadStories()]);
  }catch(err){
   console.error('PIXY publish error:',err);
   if(status)status.textContent='Ошибка публикации: '+(err?.message||'неизвестная ошибка');
@@ -851,11 +856,58 @@ $('soundUseBtn').onclick=()=>{
  $('cameraSoundPill').classList.toggle('has-track',!!t);
  const preview=$('musicPickerPreview');if(preview){preview.pause();preview.removeAttribute('src')}
  $('soundPicker').classList.add('hidden');
+ syncReviewAudio();
+ const reviewMusic=$('reviewMusicAudio');if(reviewMusic&&t){reviewMusic.play().catch(()=>{})}
 };
+$('reviewBackBtn').onclick=()=>{
+ const music=$('reviewMusicAudio');if(music)music.pause();
+ $('cameraReviewScreen').classList.add('hidden');selectedFiles=[];selectedFile=null;
+ if(!cameraStream)startCamera();
+};
+$('reviewNextBtn').onclick=()=>{
+ $('cameraReviewScreen').classList.add('review-exit');
+ setTimeout(()=>{$('cameraReviewScreen').classList.add('hidden');$('cameraReviewScreen').classList.remove('review-exit');$('publishDetailsScreen').classList.remove('hidden');$('publishDetailsScreen').classList.add('review-enter')},150);
+};
+$('publishBackBtn').onclick=()=>{
+ $('publishDetailsScreen').classList.add('hidden');$('cameraReviewScreen').classList.remove('hidden');$('cameraReviewScreen').classList.add('review-enter');
+};
+$('reviewSoundBtn').onclick=()=>{
+ $('reviewSoundPanel').classList.toggle('hidden');
+ const video=$('filePreview').querySelector('video'),music=$('reviewMusicAudio');
+ if(video){video.muted=false;video.volume=Number($('originalVolume').value)/100;video.play().catch(()=>{})}
+ if(music&&selectedMusicId){music.volume=Number($('musicVolume').value)/100;music.play().catch(()=>{})}
+};
+$('reviewSoundClose').onclick=()=>$('reviewSoundPanel').classList.add('hidden');
+$('originalVolume').oninput=e=>{$('originalVolumeValue').textContent=e.target.value+'%';syncReviewAudio()};
+$('musicVolume').oninput=e=>{$('musicVolumeValue').textContent=e.target.value+'%';syncReviewAudio()};
+$('reviewChooseMusic').onclick=()=>{$('soundPicker').classList.remove('hidden');pickerMusicId=selectedMusicId;renderSoundTracks()};
+$('publishAsStory').onclick=()=>{
+ reviewStoryMode=!reviewStoryMode;
+ $('publishAsStory').classList.toggle('selected',reviewStoryMode);
+ $('publishAsStory').querySelector('span').textContent=reviewStoryMode?'Выбрана история · 24 часа':'24 часа';
+ $('postForm').querySelector('button[type="submit"]').textContent=reviewStoryMode?'Опубликовать историю':'Опубликовать';
+};
+$('filePreview').addEventListener('pointerdown',e=>{if(selectedFiles.length<2)return;window.__pixyReviewStartX=e.clientX});
+$('filePreview').addEventListener('pointerup',e=>{
+ if(selectedFiles.length<2||!Number.isFinite(window.__pixyReviewStartX))return;
+ const dx=e.clientX-window.__pixyReviewStartX;window.__pixyReviewStartX=null;if(Math.abs(dx)<35)return;
+ let current=Number($('filePreview').dataset.index||0),next=Math.max(0,Math.min(selectedFiles.length-1,current+(dx<0?1:-1)));
+ if(next===current)return;
+ $('filePreview').dataset.index=String(next);
+ [...$('filePreview').querySelectorAll('img')].forEach((im,i)=>{im.classList.toggle('review-active',i===next);im.classList.toggle('review-before',i<next)});
+ $('reviewKindLabel').textContent='ФОТО · '+(next+1)+' / '+selectedFiles.length;
+});
+$('filePreview').addEventListener('click',e=>{if(e.target.closest('video'))return});
+document.querySelectorAll('[data-video-filter]').forEach(b=>b.onclick=()=>{
+ reviewFilter=b.dataset.videoFilter;document.querySelectorAll('[data-video-filter]').forEach(x=>x.classList.toggle('active',x===b));
+ const filters={none:'none',warm:'saturate(1.25) sepia(.22)',mono:'grayscale(1)',dream:'saturate(.82) brightness(1.12) contrast(.9)'};
+ $('filePreview').style.filter=filters[reviewFilter]||'none';
+});
 $('soundRemoveBtn').onclick=()=>{
  selectedMusicId='';pickerMusicId='';$('postMusic').value='';$('cameraSoundLabel').textContent='Добавить звук';$('cameraSoundPill').classList.remove('has-track');
  const preview=$('musicPickerPreview');if(preview){preview.pause();preview.removeAttribute('src')}
  $('soundPicker').classList.add('hidden');
+ syncReviewAudio();
 };
 document.addEventListener('click',e=>{if(e.target.closest('[data-sound-close]')){$('soundPicker').classList.add('hidden');const preview=$('musicPickerPreview');if(preview){preview.pause();preview.removeAttribute('src')}}});
 $('feed').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-carousel]');if(b){b.dataset.pointerStart=String(e.clientX);try{b.setPointerCapture(e.pointerId)}catch(_){}}});

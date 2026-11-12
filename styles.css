@@ -721,3 +721,9 @@ body.call-active{overflow:hidden}
 .camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-mask-picker,
 .camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-sound-pill,
 .camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-topline{opacity:0;pointer-events:none}
+
+
+.publish-details-screen.review-enter{animation:reviewFadeIn .22s ease both}
+.camera-preview-enter{animation:cameraPreviewIn .28s ease both}
+.post-video-wrap audio[data-video-audio]{display:none!important}
+@keyframes cameraPreviewIn{from{opacity:.4;transform:scale(1.025)}to{opacity:1;transform:scale(1)}}

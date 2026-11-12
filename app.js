@@ -454,12 +454,13 @@ async function startVoiceCall(){
  callDirection='outgoing';await loadCallPeerProfile(activeChatUser,$('chatTitle').textContent||'Контакт');callUi(true,'Вызов…');startCallTone('outgoing');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
  try{
   await ensureCallChannel(activeConversation);
-  const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});
-  if(inviteError)throw inviteError;
-  await new Promise((resolve,reject)=>{
+  const readyPromise=new Promise((resolve,reject)=>{
    callPeerReadyResolve=resolve;
    callPeerReadyTimer=setTimeout(()=>{if(callPeerReadyResolve===resolve){callPeerReadyResolve=null;reject(new Error('Собеседник не подключился к звонку.'))}},15000);
   });
+  const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});
+  if(inviteError)throw inviteError;
+  await readyPromise;
   const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})
 }
  catch(err){console.error('PIXY call start:',err);toast('Не удалось начать звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}

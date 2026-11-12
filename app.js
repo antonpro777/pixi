@@ -169,7 +169,7 @@ function videoSoundIcon(muted){
 function renderPostMedia(p){
  const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];
  const filter=mediaFilterCss(p.media_filter),original=Math.max(0,Math.min(1,Number(p.original_volume??1))),musicVolume=Math.max(0,Math.min(1,Number(p.music_volume??.7)));
- if(p.media_type==='video')return '<div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+original+'" data-music-volume="'+musicVolume+'" autoplay muted playsinline preload="metadata" style="filter:'+filter+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
+ if(p.media_type==='video')return '<div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+original+'" data-music-volume="'+musicVolume+'" muted playsinline preload="none" style="filter:'+filter+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
  const first=items[0]||{url:p.media_url};
  if(items.length>1)return '<div class="post-carousel" data-carousel data-music-volume="'+musicVolume+'" data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" style="filter:'+filter+'" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+''+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span><span class="carousel-hint">‹ Листай ›</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music data-music-volume="'+musicVolume+'" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
  return '<img style="filter:'+filter+'" src="'+safe(first.url||p.media_url)+'" alt="Публикация">';
@@ -217,7 +217,45 @@ function bindCustomVideoControls(root){
   }
  });
 }
-function observeVisibleMedia(root){if(!root||!('IntersectionObserver'in window))return;const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{const el=entry.target;if(entry.isIntersecting&&entry.intersectionRatio>.62){if(el.tagName==='VIDEO'){el.play().catch(()=>{el.muted=true;el.play().catch(()=>{})})}else if(el.matches('[data-carousel]')){const audio=el.parentElement?.querySelector('[data-carousel-music]');if(audio){audio.volume=Math.max(0,Math.min(1,Number(el.dataset.musicVolume??.7)));audio.play().catch(()=>{})}}}else{if(el.tagName==='VIDEO')el.pause();else if(el.matches('[data-carousel]')){const audio=el.parentElement?.querySelector('[data-carousel-music]');audio?.pause()}}}),{threshold:[0,.62,.85]});root.querySelectorAll('video[data-post-video], [data-carousel]').forEach(el=>observer.observe(el))}
+let pixyMediaObserver=null,pixyActiveVideo=null;
+function observeVisibleMedia(root){
+ if(!root||!('IntersectionObserver'in window))return;
+ if(!pixyMediaObserver){
+  pixyMediaObserver=new IntersectionObserver(entries=>{
+   entries.forEach(entry=>{
+    const el=entry.target;
+    if(el.tagName==='VIDEO'){
+     if(entry.isIntersecting&&entry.intersectionRatio>.62){
+      if(pixyActiveVideo&&pixyActiveVideo!==el){
+       pixyActiveVideo.pause();
+       const previousAudio=pixyActiveVideo.closest('.post-video-wrap')?.querySelector('audio[data-video-audio]');
+       previousAudio?.pause();
+      }
+      pixyActiveVideo=el;
+      el.preload='auto';
+      if(el.readyState===0)el.load();
+      el.play().catch(()=>{el.muted=true;el.play().catch(()=>{})});
+     }else{
+      el.pause();
+      if(pixyActiveVideo===el)pixyActiveVideo=null;
+      const audio=el.closest('.post-video-wrap')?.querySelector('audio[data-video-audio]');
+      audio?.pause();
+     }
+    }else if(el.matches('[data-carousel]')){
+     const audio=el.parentElement?.querySelector('[data-carousel-music]');
+     if(entry.isIntersecting&&entry.intersectionRatio>.62){
+      if(audio){audio.volume=Math.max(0,Math.min(1,Number(el.dataset.musicVolume??.7)));audio.play().catch(()=>{})}
+     }else audio?.pause();
+    }
+   });
+  },{threshold:[0,.62,.85]});
+ }
+ root.querySelectorAll('video[data-post-video], [data-carousel]').forEach(el=>{
+  if(el.dataset.mediaObserved)return;
+  el.dataset.mediaObserved='1';
+  pixyMediaObserver.observe(el);
+ });
+}
 async function loadFeed(){
  if(!sb)return;
  const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
@@ -237,7 +275,7 @@ async function loadVideos(){
  if(!sb)return;
  const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
- $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" autoplay muted playsinline style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
+ $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" muted playsinline preload="none" style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
  bindVideoAudio($('view-videos'));bindCustomVideoControls($('view-videos'));observeVisibleMedia($('view-videos'));
 }
@@ -1153,8 +1191,8 @@ async function loadProfilePosts(){
  if(error){console.warn('PIXY profile posts:',error);return}
  const posts=data||[];
  $('postCount').textContent=posts.length;
- $('profileGrid').innerHTML=posts.length?posts.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<div class="post-video-wrap"><video data-post-video="1" playsinline preload="metadata" style="filter:'+mediaFilterCss(p.media_filter)+'" src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button></div>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join('') :'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>';
- bindVideoAudio($('profileGrid'));bindCustomVideoControls($('profileGrid'));observeVisibleMedia($('profileGrid'));
+ $('profileGrid').innerHTML=posts.length?posts.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<div class="post-video-wrap"><video muted playsinline preload="metadata" tabindex="-1" aria-label="Предпросмотр видео" style="filter:'+mediaFilterCss(p.media_filter)+'" src="'+safe(p.media_url)+'"></video></div>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join('') :'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>';
+ // Profile grid videos are quiet previews; don't autoplay or compete with feed playback.
 }
 
 const bgColors={aurora:['#38255d','#bb85f3'],sunset:['#64364f','#f3a17c'],ocean:['#173b55','#71c6dc'],candy:['#683b6c','#ee91ce'],forest:['#1d5146','#84d2ad'],cosmic:['#20214f','#9d9bff'],peach:['#794b3f','#ffc49d'],lavender:['#453d70','#c6b3ff'],neon:['#222044','#ff75b7'],silver:['#424252','#c9c9df']};

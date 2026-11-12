@@ -1012,8 +1012,8 @@ $('captureShutter').onclick=async()=>{
    stopVideoRecording(false);
   }else{
    if(!cameraStream)await startCamera();if(!cameraStream)throw Error('Не удалось включить камеру.');
+   if(!await runCaptureCountdown())return;
    const recordStream=await makeRecordingStream();
-   if(!await runCaptureCountdown()){stopRecordingAudio();return}
    const mt=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
    mediaRecorder=new MediaRecorder(recordStream,{...(mt?{mimeType:mt}:{}),videoBitsPerSecond:2500000,audioBitsPerSecond:128000});
    recordedChunks=[];

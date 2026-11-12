@@ -775,7 +775,7 @@ $('postForm').addEventListener('submit',async e=>{
   };
   if(status)status.textContent=reviewStoryMode?'Сохраняю историю…':'Сохраняю публикацию…';
   if(reviewStoryMode){
-   const {error:storyError}=await sb.from('stories').insert({author_id:user.id,media_url:uploaded[0].url,media_type:isVideo?'video':'image'});
+   const {error:storyError}=await sb.from('stories').insert({author_id:user.id,media_url:uploaded[0].url,media_type:isVideo?'video':'image',visibility:document.querySelector('input[name="postAudience"]:checked')?.value||'public'});
    if(storyError)throw storyError;
   }else{
    const {error:insertError}=await sb.from('posts').insert(payload);

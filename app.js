@@ -978,30 +978,35 @@ async function makeRecordingStream(){
  if(!music)return new MediaStream([zoomTrack,...micTracks]);
  const AC=window.AudioContext||window.webkitAudioContext;
  if(!AC)throw new Error('Браузер не поддерживает запись выбранной музыки. Попробуй другой браузер.');
- recordAudioContext=new AC();
- await recordAudioContext.resume();
- const ctx=recordAudioContext,destination=ctx.createMediaStreamDestination();
- if(micTracks.length){
-  const mic=ctx.createMediaStreamSource(new MediaStream(micTracks));
-  const micGain=ctx.createGain();
-  micGain.gain.value=Math.max(0,Math.min(1,Number($('originalVolume')?.value??100)/100));
-  mic.connect(micGain);micGain.connect(destination);
+ try{
+  recordAudioContext=new AC();
+  await recordAudioContext.resume();
+  const ctx=recordAudioContext,destination=ctx.createMediaStreamDestination();
+  if(micTracks.length){
+   const mic=ctx.createMediaStreamSource(new MediaStream(micTracks));
+   const micGain=ctx.createGain();
+   micGain.gain.value=Math.max(0,Math.min(1,Number($('originalVolume')?.value??100)/100));
+   mic.connect(micGain);micGain.connect(destination);
+  }
+  const audio=document.createElement('audio');
+  audio.crossOrigin='anonymous';audio.preload='auto';audio.loop=true;audio.src=music.audio_url;
+  recordMusicElement=audio;
+  await new Promise((resolve,reject)=>{
+   if(audio.readyState>=3)return resolve();
+   const timer=setTimeout(()=>reject(new Error('Музыкальный трек не успел загрузиться. Попробуй выбрать его ещё раз.')),10000);
+   audio.addEventListener('canplay',()=>{clearTimeout(timer);resolve()},{once:true});
+   audio.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('Не удалось загрузить выбранную музыку.'))},{once:true});
+   audio.load();
+  });
+  const musicSource=ctx.createMediaElementSource(audio),musicGain=ctx.createGain();
+  musicGain.gain.value=Math.max(0,Math.min(1,Number($('musicVolume')?.value??70)/100));
+  musicSource.connect(musicGain);musicGain.connect(destination);musicGain.connect(ctx.destination);
+  await audio.play();
+  return new MediaStream([zoomTrack,...destination.stream.getAudioTracks()]);
+ }catch(error){
+  stopRecordingAudio();
+  throw error;
  }
- const audio=document.createElement('audio');
- audio.crossOrigin='anonymous';audio.preload='auto';audio.loop=true;audio.src=music.audio_url;
- recordMusicElement=audio;
- await new Promise((resolve,reject)=>{
-  if(audio.readyState>=3)return resolve();
-  const timer=setTimeout(()=>reject(new Error('Музыкальный трек не успел загрузиться. Попробуй выбрать его ещё раз.')),10000);
-  audio.addEventListener('canplay',()=>{clearTimeout(timer);resolve()},{once:true});
-  audio.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('Не удалось загрузить выбранную музыку.'))},{once:true});
-  audio.load();
- });
- const musicSource=ctx.createMediaElementSource(audio),musicGain=ctx.createGain();
- musicGain.gain.value=Math.max(0,Math.min(1,Number($('musicVolume')?.value??70)/100));
- musicSource.connect(musicGain);musicGain.connect(destination);musicGain.connect(ctx.destination);
- await audio.play();
- return new MediaStream([zoomTrack,...destination.stream.getAudioTracks()]);
 }
 function stopVideoRecording(auto=false){
  if(mediaRecorder?.state!=='recording')return;

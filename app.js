@@ -21,7 +21,7 @@ window.addEventListener('unhandledrejection',event=>{
 const toast=(m)=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)};
 const authStatus=(m,err=false)=>{$('authStatus').textContent=m;$('authStatus').style.color=err?'#ff9dba':'#9debd6'};
 const setAuth=(mode)=>{authMode=mode;['loginForm','signupForm','verifyForm','resetForm','newPasswordForm'].forEach(id=>$(id).classList.add('hidden'));$(mode+'Form').classList.remove('hidden');$('auth').classList.remove('hidden');$('app').classList.add('hidden');$('authStatus').textContent='';$('authSwitch').classList.toggle('hidden',mode==='verify'||mode==='reset'||mode==='newPassword');$('authTitle').textContent=mode==='signup'?'Создай свой мир.':mode==='verify'?'Проверь почту.':mode==='reset'?'Восстановим доступ.':mode==='newPassword'?'Новый пароль.':'С возвращением.';$('authSub').textContent=mode==='signup'?'Присоединяйся к PIXY.':mode==='verify'?'Мы отправили тебе код подтверждения.':mode==='reset'?'Отправим код для восстановления.':mode==='newPassword'?'Придумай новый надёжный пароль.':'Войди в свой мир PIXY.';$('authSwitch').innerHTML=mode==='signup'?'Уже есть аккаунт? <button id="showLogin">Войти</button>':mode==='login'?'Впервые здесь? <button id="showSignup">Создать аккаунт</button>':'<button id="backLogin">← Вернуться ко входу</button>';if($('showLogin'))$('showLogin').onclick=()=>setAuth('login');if($('showSignup'))$('showSignup').onclick=()=>setAuth('signup');if($('backLogin'))$('backLogin').onclick=()=>setAuth('login')};
-function showApp(){initIncomingCallListeners();initializeActivitySeen();setupActivityRealtime(); $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet();loadNotifications();refreshChatBadge()}
+function showApp(){initIncomingCallListeners();initializeActivitySeen();setupActivityRealtime(); $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent='';$('profileAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet();loadNotifications();refreshChatBadge()}
 function nav(view){
  $('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');
  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
@@ -688,7 +688,7 @@ $('feed').addEventListener('click',async e=>{
  if(c){openComments(c.dataset.comment);return}
 });
 
-let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,recordCountdownTimer=null,recordStartedAt=0,cameraFacing='environment',captureMode='photo',cameraBusy=false;
+let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,recordCountdownTimer=null,recordStartedAt=0,cameraFacing='environment',captureMode='photo',cameraBusy=false,captureDelayValue=3,captureDelayTimer=null,captureDelayResolve=null,captureDelayActive=false;
 let selectedMusicId='',pickerMusicId='',recordAudioContext=null,recordMusicElement=null,cameraZoomHardware=false,zoomCanvasStream=null,zoomRenderFrame=0;
 function stopRecordingAudio(){
  if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.removeAttribute('src');recordMusicElement.load()}catch(_){}recordMusicElement=null}
@@ -696,6 +696,9 @@ function stopRecordingAudio(){
 }
 function stopCamera(){
  stopZoomRender();
+ if(captureDelayTimer){clearInterval(captureDelayTimer);captureDelayTimer=null}
+ if(captureDelayResolve){captureDelayResolve(false);captureDelayResolve=null}
+ captureDelayActive=false;$('cameraCountdownOverlay')?.classList.add('hidden');$('cameraTimerMenu')?.classList.add('hidden');
  if(recordTimer){clearTimeout(recordTimer);recordTimer=null}
  if(mediaRecorder?.state==='recording'){try{mediaRecorder.stop()}catch(_){}}
  stopRecordingAudio();
@@ -846,8 +849,12 @@ async function startCamera(){
 function setCaptureMode(m){
  captureMode=m;$('postMode').value=m==='video'?'video':'single';$('captureShutter').dataset.mode=m;$('captureShutter').dataset.label=m==='video'?'Снять видео':'Сфоткать';
  $('capturePhotoMode').classList.toggle('active',m==='photo');$('captureVideoMode').classList.toggle('active',m==='video');
- $('cameraHint').textContent=m==='video'?'Видео · до 20 секунд':'Фото';
+ $('cameraTimerBtn')?.classList.toggle('hidden',m!=='video');$('cameraHint').textContent=m==='video'?'Видео · до 20 секунд':'Фото';
 }
+function setCaptureDelay(seconds){captureDelayValue=Number(seconds)||3;$('cameraTimerBtn').textContent='◷ '+captureDelayValue+'с';$('cameraTimerMenu').classList.add('hidden');document.querySelectorAll('[data-capture-delay]').forEach(b=>b.classList.toggle('active',Number(b.dataset.captureDelay)===captureDelayValue))}
+function playCountdownTick(final=false){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!pixyAudioContext)pixyAudioContext=new AC();const ctx=pixyAudioContext;if(ctx.state==='suspended')ctx.resume().catch(()=>{});const now=ctx.currentTime;const notes=final?[[784,0,.16],[1046,.12,.2]]:[[587.33,0,.19],[880,.025,.13]];notes.forEach(([hz,delay,duration],i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(hz,now+delay);osc.frequency.exponentialRampToValueAtTime(hz*(i?1.18:1.04),now+delay+duration);gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(final?.13:.085,now+delay+.018);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.025)})}catch(err){console.warn('PIXY countdown sound:',err)}}
+function runCaptureCountdown(){if(captureDelayValue<=0)return Promise.resolve(true);captureDelayActive=true;let left=captureDelayValue;$('cameraCountdownNumber').textContent=String(left);$('cameraCountdownOverlay').classList.remove('hidden');playCountdownTick(false);return new Promise(resolve=>{captureDelayResolve=resolve;captureDelayTimer=setInterval(()=>{if(!captureDelayActive)return;left--;if(left>0){$('cameraCountdownNumber').textContent=String(left);$('cameraCountdownNumber').classList.remove('count-pop');void $('cameraCountdownNumber').offsetWidth;$('cameraCountdownNumber').classList.add('count-pop');playCountdownTick(false);return}clearInterval(captureDelayTimer);captureDelayTimer=null;captureDelayActive=false;$('cameraCountdownOverlay').classList.add('hidden');captureDelayResolve=null;playCountdownTick(true);resolve(true)},1000)})}
+$('cameraTimerBtn')?.addEventListener('click',()=>{$('cameraTimerMenu').classList.toggle('hidden')});$('cameraTimerMenu')?.addEventListener('click',e=>{const b=e.target.closest('[data-capture-delay]');if(b)setCaptureDelay(b.dataset.captureDelay)});document.addEventListener('click',e=>{if(!e.target.closest('.camera-timer-control'))$('cameraTimerMenu')?.classList.add('hidden')});setCaptureDelay(3);
 function openComposer(){
  if(!user)return toast('Сначала войди в PIXY.');
  $('composerModal').classList.remove('hidden');$('composerModal').classList.remove('camera-opening');void $('composerModal').offsetWidth;$('composerModal').classList.add('camera-opening');
@@ -916,17 +923,17 @@ $('postForm').addEventListener('submit',async e=>{
  button.textContent='Публикую…';
  const status=$('publishStatus');if(status){status.textContent='Подготавливаю публикацию…';status.classList.remove('hidden')}
  try{
-  const uploaded=[];
-  for(let i=0;i<files.length;i++){
-   const file=files[i];
-   if(status)status.textContent='Загружаю файл '+(i+1)+' из '+files.length+'…';
+  if(status)status.textContent=files.length>1?'Оптимизирую и загружаю файлы параллельно…':'Оптимизирую файл…';
+  const prepared=await Promise.all(files.map(optimizeImageForUpload));
+  const uploaded=await Promise.all(prepared.map(async(file,i)=>{
+   if(status)status.textContent='Загружаю '+(i+1)+' из '+prepared.length+'…';
    const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';
    const path=user.id+'/posts/'+crypto.randomUUID()+'.'+ext;
-   const {error:uploadError}=await sb.storage.from('pixy-media').upload(path,file,{contentType:file.type||'application/octet-stream'});
+   const {error:uploadError}=await sb.storage.from('pixy-media').upload(path,file,{contentType:file.type||'application/octet-stream',cacheControl:'31536000',upsert:false});
    if(uploadError)throw uploadError;
    const url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl;
-   uploaded.push({url,type:file.type.startsWith('video/')?'video':'image'});
-  }
+   return {url,type:file.type.startsWith('video/')?'video':'image'};
+  }));
   const isVideo=files.length===1&&files[0].type.startsWith('video/');
   const isRecordedVideo=isVideo&&files[0].name==='pixy-video.webm';
   const track=availableMusic.find(t=>t.id===selectedMusicId)||null;
@@ -973,6 +980,7 @@ $('postForm').addEventListener('submit',async e=>{
   button.textContent=oldText;
  }
 });
+async function optimizeImageForUpload(file){if(!file?.type?.startsWith('image/')||file.type==='image/gif'||file.size<1200*1024||!('createImageBitmap'in window))return file;try{const bitmap=await createImageBitmap(file);const scale=Math.min(1,2048/Math.max(bitmap.width,bitmap.height));if(scale===1&&file.size<2*1024*1024){bitmap.close?.();return file}const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d',{alpha:true}).drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close?.();const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.84));if(!blob||blob.size>=file.size)return file;return new File([blob],file.name.replace(/\.[^.]+$/,'')+'.webp',{type:'image/webp',lastModified:Date.now()})}catch(err){console.warn('PIXY image optimization skipped:',err);return file}}
 async function makeRecordingStream(){
  const zoomTrack=makeZoomedVideoTrack();
  const music=availableMusic.find(t=>t.id===selectedMusicId);
@@ -1032,6 +1040,7 @@ $('captureShutter').onclick=async()=>{
   }else{
    if(!cameraStream)await startCamera();if(!cameraStream)throw Error('Не удалось включить камеру.');
    const recordStream=await makeRecordingStream();
+   if(!await runCaptureCountdown()){stopRecordingAudio();return}
    const mt=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
    mediaRecorder=new MediaRecorder(recordStream,{...(mt?{mimeType:mt}:{}),videoBitsPerSecond:2500000,audioBitsPerSecond:128000});
    recordedChunks=[];
@@ -1298,22 +1307,17 @@ async function loadShop(){
  const [{data:bg,error:be},{data:gs,error:ge}]=await Promise.all([sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order').order('sort_order')]);
  if(be)toast(be.message);if(ge)toast(ge.message);
  $('backgroundShop').innerHTML=(bg||[]).map(x=>{const c=bgColors[x.id]||['#343047','#a78bfa'];return '<button class="shop-tile" data-background="'+safe(x.id)+'"><div class="swatch" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')"></div><small>'+safe(x.title)+'</small><b>'+(x.price_xion===0?'Бесплатно':x.price_xion+' pts')+'</b></button>'}).join('');
- $('giftShop').innerHTML=(gs||[]).map(g=>'<button type="button" class="gift-tile" data-buy-gift="'+safe(g.id)+'"><span>'+safe(g.emoji)+'</span><b>'+safe(g.title)+'</b><small>'+g.price_xion+' pts · Купить и отправить</small></button>').join('');
+ $('giftShop').innerHTML=(gs||[]).map(g=>'<button type="button" class="gift-tile" data-buy-gift="'+safe(g.id)+'"><span>'+safe(g.emoji)+'</span><b>'+safe(g.title)+'</b><small>'+g.price_xion+' pts · Купить</small></button>').join('');
+  $('buyGiftForSelf').checked=false;$('giftRecipient').disabled=false;$('giftRecipient').placeholder='Username получателя (например, alex.pixy)';
 }
+$('buyGiftForSelf')?.addEventListener('change',e=>{$('giftRecipient').disabled=e.target.checked;$('giftRecipient').placeholder=e.target.checked?'Подарок будет куплен для твоего профиля':'Username получателя (например, alex.pixy)'});
 $('giftShop').addEventListener('click',async e=>{
  const b=e.target.closest('[data-buy-gift]');if(!b||!user)return;
- const username=$('giftRecipient').value.trim().replace(/^@/,'').toLowerCase();
- if(!username)return toast('Сначала введи username получателя.');
- const {data:recipient,error:findError}=await sb.from('profiles').select('id,username').eq('username',username).maybeSingle();
- if(findError)return toast(findError.message);
- if(!recipient)return toast('Пользователь @'+username+' не найден.');
- if(recipient.id===user.id)return toast('Нельзя отправить подарок самому себе.');
- if(!confirm('Отправить подарок пользователю @'+recipient.username+'? Баллы спишутся после подтверждения.'))return;
- b.disabled=true;
- const {data,error}=await sb.rpc('send_virtual_gift',{recipient:recipient.id,gift_key:b.dataset.buyGift});
- b.disabled=false;
- if(error)return toast(error.message);
- toast('Подарок отправлен! Остаток: '+data+' pts');loadWallet();
+ const forSelf=$('buyGiftForSelf').checked;let recipientId=user.id,recipientName=profile?.username||'тебя';
+ if(!forSelf){const username=$('giftRecipient').value.trim().replace(/^@/,'').toLowerCase();if(!username)return toast('Введи username получателя или выбери «Купить себе».');const {data:recipient,error:findError}=await sb.from('profiles').select('id,username').eq('username',username).maybeSingle();if(findError)return toast(findError.message);if(!recipient)return toast('Пользователь @'+username+' не найден.');if(recipient.id===user.id)return toast('Для покупки себе включи переключатель «Купить себе».');recipientId=recipient.id;recipientName='@'+recipient.username}
+ if(!confirm('Купить подарок '+(forSelf?'для себя':'для '+recipientName)+'? Баллы спишутся после подтверждения.'))return;
+ b.disabled=true;const {data,error}=await sb.rpc('send_virtual_gift',{recipient:recipientId,gift_key:b.dataset.buyGift});b.disabled=false;if(error)return toast(error.message);
+ toast(forSelf?'Подарок куплен и добавлен в твою коллекцию! Остаток: '+data+' pts':'Подарок отправлен! Остаток: '+data+' pts');loadWallet();loadShop();
 });
 $('backgroundShop').addEventListener('click',async e=>{
  const b=e.target.closest('[data-background]');if(!b||!user)return;

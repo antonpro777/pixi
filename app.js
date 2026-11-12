@@ -92,7 +92,9 @@ $('resendCode').onclick=async()=>{if(!sb||!pendingEmail)return;const result=veri
 $('resetForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;pendingEmail=$('resetEmail').value.trim();verifyPurpose='recovery';const {error}=await sb.auth.resetPasswordForEmail(pendingEmail);if(error)return authStatus(error.message,true);setAuth('verify');authStatus('Код восстановления отправлен на '+pendingEmail)});
 $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;const {error}=await sb.auth.updateUser({password:$('newPassword').value});if(error)return authStatus(error.message,true);toast('Пароль обновлён');setAuth('login')});
 async function signOutOfPixy(){
- try{if(sb){const {error}=await sb.auth.signOut();if(error)throw error}
+ try{
+  if(inboxMessagesChannel&&sb){await sb.removeChannel(inboxMessagesChannel);inboxMessagesChannel=null}
+  if(sb){const {error}=await sb.auth.signOut();if(error)throw error}
   user=null;profile=null;activeConversation=null;activeChatUser=null;document.body.classList.remove('chat-open','call-active');
   setAuth('login');toast('Ты вышел из аккаунта PIXY.');
  }catch(error){console.error('PIXY sign out:',error);toast('Не удалось выйти: '+(error?.message||'ошибка'))}
@@ -159,10 +161,15 @@ async function loadProfile(){
 function mediaFilterCss(key){
  return ({none:'none',warm:'saturate(1.25) sepia(.22)',mono:'grayscale(1)',dream:'saturate(.82) brightness(1.12) contrast(.9)'})[key]||'none';
 }
+function videoSoundIcon(muted){
+ return muted
+  ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="m16 9 5 6m0-6-5 6"></path></svg>'
+  : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path></svg>';
+}
 function renderPostMedia(p){
  const items=Array.isArray(p.media_items)&&p.media_items.length?p.media_items:[{url:p.media_url,type:p.media_type}];
  const filter=mediaFilterCss(p.media_filter),original=Math.max(0,Math.min(1,Number(p.original_volume??1))),musicVolume=Math.max(0,Math.min(1,Number(p.music_volume??.7)));
- if(p.media_type==='video')return '<div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+original+'" data-music-volume="'+musicVolume+'" playsinline preload="metadata" style="filter:'+filter+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video><button type="button" class="video-toggle-btn" data-video-toggle aria-label="Воспроизвести видео">▶</button><button type="button" class="video-mute-btn" data-video-mute aria-label="Выключить звук">◗</button>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
+ if(p.media_type==='video')return '<div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+original+'" data-music-volume="'+musicVolume+'" autoplay muted playsinline preload="metadata" style="filter:'+filter+'" '+(p.music_url?'data-video-music="1"':'')+' src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>';
  const first=items[0]||{url:p.media_url};
  if(items.length>1)return '<div class="post-carousel" data-carousel data-music-volume="'+musicVolume+'" data-items="'+safe(JSON.stringify(items))+'" data-index="0"><img data-carousel-image draggable="false" style="filter:'+filter+'" src="'+safe(first.url)+'" alt="Фото 1 из '+items.length+'">'+''+'<span class="carousel-count" data-carousel-count>1 / '+items.length+'</span><span class="carousel-hint">‹ Листай ›</span></div>'+(p.music_url?'<audio class="post-music" data-carousel-music data-music-volume="'+musicVolume+'" preload="auto" loop src="'+safe(p.music_url)+'"></audio>':'');
  return '<img style="filter:'+filter+'" src="'+safe(first.url||p.media_url)+'" alt="Публикация">';
@@ -183,7 +190,33 @@ function bindVideoAudio(root){
   video.addEventListener('ended',()=>{audio.pause();audio.currentTime=0});
  });
 }
-function bindCustomVideoControls(root){if(!root||root.dataset.customVideoBound)return;root.dataset.customVideoBound='1';root.addEventListener('click',e=>{const toggle=e.target.closest('[data-video-toggle]'),mute=e.target.closest('[data-video-mute]');if(!toggle&&!mute)return;const wrap=e.target.closest('.post-video-wrap'),video=wrap?.querySelector('video');if(!video)return;if(toggle){if(video.paused)video.play().catch(()=>toast('Не удалось запустить видео.'));else video.pause();toggle.textContent=video.paused?'▶':'Ⅱ'}if(mute){video.muted=!video.muted;const music=wrap.querySelector('audio[data-video-audio]');if(music)music.muted=video.muted;mute.textContent=video.muted?'◖':'◗';mute.setAttribute('aria-label',video.muted?'Включить звук':'Выключить звук')}});root.querySelectorAll('.post-video-wrap video').forEach(v=>{const t=v.parentElement.querySelector('[data-video-toggle]'),m=v.parentElement.querySelector('[data-video-mute]');if(m){m.textContent=v.muted?'◖':'◗';m.setAttribute('aria-label',v.muted?'Включить звук':'Выключить звук')}v.addEventListener('play',()=>{if(t)t.textContent='Ⅱ'});v.addEventListener('pause',()=>{if(t)t.textContent='▶'})})}
+function bindCustomVideoControls(root){
+ if(!root||root.dataset.customVideoBound)return;
+ root.dataset.customVideoBound='1';
+ root.addEventListener('click',e=>{
+  const mute=e.target.closest('[data-video-mute]');
+  if(!mute)return;
+  const wrap=mute.closest('.post-video-wrap'),video=wrap?.querySelector('video');
+  if(!video)return;
+  video.muted=!video.muted;
+  const music=wrap.querySelector('audio[data-video-audio]');
+  if(music)music.muted=video.muted;
+  mute.innerHTML=videoSoundIcon(video.muted);
+  mute.setAttribute('aria-label',video.muted?'Включить звук':'Выключить звук');
+  mute.setAttribute('aria-pressed',String(video.muted));
+ });
+ root.querySelectorAll('.post-video-wrap video').forEach(video=>{
+  video.muted=true;
+  const mute=video.parentElement.querySelector('[data-video-mute]');
+  const music=video.parentElement.querySelector('audio[data-video-audio]');
+  if(music)music.muted=true;
+  if(mute){
+   mute.innerHTML=videoSoundIcon(true);
+   mute.setAttribute('aria-label','Включить звук');
+   mute.setAttribute('aria-pressed','true');
+  }
+ });
+}
 function observeVisibleMedia(root){if(!root||!('IntersectionObserver'in window))return;const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{const el=entry.target;if(entry.isIntersecting&&entry.intersectionRatio>.62){if(el.tagName==='VIDEO'){el.play().catch(()=>{el.muted=true;el.play().catch(()=>{})})}else if(el.matches('[data-carousel]')){const audio=el.parentElement?.querySelector('[data-carousel-music]');if(audio){audio.volume=Math.max(0,Math.min(1,Number(el.dataset.musicVolume??.7)));audio.play().catch(()=>{})}}}else{if(el.tagName==='VIDEO')el.pause();else if(el.matches('[data-carousel]')){const audio=el.parentElement?.querySelector('[data-carousel-music]');audio?.pause()}}}),{threshold:[0,.62,.85]});root.querySelectorAll('video[data-post-video], [data-carousel]').forEach(el=>observer.observe(el))}
 async function loadFeed(){
  if(!sb)return;
@@ -204,7 +237,7 @@ async function loadVideos(){
  if(!sb)return;
  const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
- $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" playsinline style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video><button type="button" class="video-toggle-btn" data-video-toggle aria-label="Воспроизвести видео">▶</button><button type="button" class="video-mute-btn" data-video-mute aria-label="Выключить звук">◗</button>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
+ $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video data-post-video="1" data-original-volume="'+Math.max(0,Math.min(1,Number(p.original_volume??1)))+'" data-music-volume="'+Math.max(0,Math.min(1,Number(p.music_volume??.7)))+'" autoplay muted playsinline style="filter:'+mediaFilterCss(p.media_filter)+'" '+(p.music_url?'data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
  bindVideoAudio($('view-videos'));bindCustomVideoControls($('view-videos'));observeVisibleMedia($('view-videos'));
 }
@@ -337,6 +370,7 @@ $('chatCallBtn').onclick=startVoiceCall;$('callAcceptBtn').onclick=acceptVoiceCa
 $('callMuteBtn').onclick=()=>{callMuted=!callMuted;callLocalStream?.getAudioTracks().forEach(t=>t.enabled=!callMuted);$('callMuteBtn').textContent=callMuted?'Включить микрофон':'Выключить микрофон'};
 $('callSpeakerBtn').onclick=()=>{callSpeakerOn=!callSpeakerOn;$('callRemoteAudio').muted=!callSpeakerOn;$('callSpeakerBtn').textContent=callSpeakerOn?'Выключить громкую связь':'Включить громкую связь'};
 
+let inboxMessagesChannel=null;
 async function loadChatList(){
  if(!sb||!user)return;
  const {data,error}=await sb.rpc('list_my_direct_chats');
@@ -345,9 +379,34 @@ async function loadChatList(){
  const {data:hiddenRows}=await sb.from('chat_hidden').select('conversation_id').eq('owner_id',user.id);
  const hidden=new Set((hiddenRows||[]).map(x=>x.conversation_id));
  const visibleRows=rows.filter(x=>!hidden.has(x.conversation_id));
+ const {data:readRows}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',user.id);
+ const readAt=new Map((readRows||[]).map(x=>[x.conversation_id,x.last_read_at]));
+ const unreadCounts=new Map(await Promise.all(visibleRows.map(async row=>{
+  const {count,error:countError}=await sb.from('messages').select('id',{count:'exact',head:true})
+   .eq('conversation_id',row.conversation_id).neq('sender_id',user.id)
+   .gt('created_at',readAt.get(row.conversation_id)||'1970-01-01T00:00:00.000Z');
+  if(countError)console.warn('PIXY unread count:',countError.message);
+  return [row.conversation_id,countError?0:(count||0)];
+ })));
+ if(!inboxMessagesChannel){
+  inboxMessagesChannel=sb.channel('pixy-inbox-'+user.id)
+   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},payload=>{
+    const message=payload.new;
+    if(message?.sender_id!==user.id&&message?.conversation_id!==activeConversation&&$('view-messages')&&!$('view-messages').classList.contains('hidden'))loadChatList();
+   }).subscribe();
+ }
  for(const row of visibleRows){try{await subscribeCallChannel(row.conversation_id)}catch(err){console.warn('PIXY call subscription:',row.conversation_id,err)}}
- $('chatList').innerHTML=visibleRows.map(x=>'<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.other_user_id+'" data-chat-name="'+safe(x.username||'user')+'"><span class="chat-person-avatar">'+safe((x.username||'P').slice(0,1).toUpperCase())+'</span><span><b>@'+safe(x.username||'user')+'</b><small>Открыть переписку</small></span><span class="chat-person-arrow">›</span></button>').join('')||'<div class="chat-empty"><span>✉</span><b>Пока никого нет</b><p>Когда появятся переписки, люди будут отображаться здесь.</p></div>';
+ $('chatList').innerHTML=visibleRows.map(x=>{
+  const unread=unreadCounts.get(x.conversation_id)||0;
+  return '<button class="chat-person" data-chat="'+x.conversation_id+'" data-chat-user="'+x.other_user_id+'" data-chat-name="'+safe(x.username||'user')+'"><span class="chat-person-avatar">'+safe((x.username||'P').slice(0,1).toUpperCase())+'</span><span><b>@'+safe(x.username||'user')+'</b><small>Открыть переписку</small></span>'+(unread?'<span class="chat-unread-badge" aria-label="'+unread+' непрочитанных сообщений">'+unread+'</span>':'')+'<span class="chat-person-arrow">›</span></button>';
+ }).join('')||'<div class="chat-empty"><span>✉</span><b>Пока никого нет</b><p>Когда появятся переписки, люди будут отображаться здесь.</p></div>';
  $('chatPeoplePanel').classList.remove('hidden');$('chatConversationPanel').classList.add('hidden');
+}
+async function markConversationRead(cid){
+ if(!sb||!user||!cid)return;
+ const {error}=await sb.from('conversation_members').update({last_read_at:new Date().toISOString()})
+  .eq('conversation_id',cid).eq('user_id',user.id);
+ if(error)console.warn('PIXY mark conversation read:',error.message);
 }
 async function refreshChatMessages(cid){
  const {data,error}=await sb.from('messages').select('id,sender_id,body,attachment_url,attachment_type,created_at').eq('conversation_id',cid).order('created_at',{ascending:true}).limit(100);
@@ -355,6 +414,7 @@ async function refreshChatMessages(cid){
  $('chatMessages').innerHTML=(data||[]).map(m=>{const own=m.sender_id===user.id;const audio=m.attachment_type==='audio'&&m.attachment_url;const bars=Array.from({length:30},(_,i)=>'<i style="height:'+([9,14,20,12,25,17,10,22,15,27,13,19,8,24,16][i%15])+'px"></i>').join('');return '<article class="message-bubble '+(own?'mine':'theirs')+'" data-message-id="'+m.id+'">'+(audio?'<div class="voice-note"><button class="voice-play" type="button" data-voice-play aria-label="Воспроизвести голосовое">▶</button><div class="voice-wave" data-wave>'+bars+'</div><span class="voice-duration">Голосовое</span><audio preload="metadata" src="'+safe(m.attachment_url)+'"></audio></div>':(m.body?'<div class="message-text">'+safe(m.body)+'</div>':''))+'<div class="message-meta"><time>'+new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+'</time>'+(own?'<button type="button" class="message-delete" data-delete-message="'+m.id+'" aria-label="Удалить сообщение">×</button>':'')+'</div></article>'}).join('')||'<p class="hint">Начни переписку!</p>';
  $('chatMessages').querySelectorAll('.voice-note audio').forEach(audio=>{audio.addEventListener('loadedmetadata',()=>{const out=audio.parentElement.querySelector('.voice-duration');if(out&&Number.isFinite(audio.duration)){const sec=Math.floor(audio.duration);out.textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')}})});
  $('chatMessages').scrollTop=$('chatMessages').scrollHeight;
+ if(activeConversation===cid)await markConversationRead(cid);
 }
 async function openChat(cid,uid,name){
  activeConversation=cid;activeChatUser=uid;await sb.from('chat_hidden').delete().eq('owner_id',user.id).eq('conversation_id',cid);document.body.classList.add('chat-open');$('chatTitle').textContent='@'+name;await loadCallPeerProfile(uid,'@'+name);$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
@@ -1089,7 +1149,7 @@ async function loadProfilePosts(){
  if(error){console.warn('PIXY profile posts:',error);return}
  const posts=data||[];
  $('postCount').textContent=posts.length;
- $('profileGrid').innerHTML=posts.length?posts.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<div class="post-video-wrap"><video data-post-video="1" playsinline preload="metadata" style="filter:'+mediaFilterCss(p.media_filter)+'" src="'+safe(p.media_url)+'"></video><button type="button" class="video-toggle-btn" data-video-toggle aria-label="Воспроизвести видео">▶</button><button type="button" class="video-mute-btn" data-video-mute aria-label="Выключить звук">◗</button></div>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join('') :'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>';
+ $('profileGrid').innerHTML=posts.length?posts.map(p=>'<div class="my-post" data-post-card="'+p.id+'">'+(p.media_type==='video'?'<div class="post-video-wrap"><video data-post-video="1" playsinline preload="metadata" style="filter:'+mediaFilterCss(p.media_filter)+'" src="'+safe(p.media_url)+'"></video><button type="button" class="video-mute-btn" data-video-mute aria-label="Включить звук" aria-pressed="true">'+videoSoundIcon(true)+'</button></div>':'<img src="'+safe(p.media_url)+'" alt="Моя публикация">')+'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button></div>').join('') :'<div class="empty-hint">Твои публикации будут отображаться здесь.</div>';
  bindVideoAudio($('profileGrid'));bindCustomVideoControls($('profileGrid'));observeVisibleMedia($('profileGrid'));
 }
 

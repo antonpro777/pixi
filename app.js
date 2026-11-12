@@ -105,6 +105,10 @@ $('signOutProfile')?.addEventListener('click',signOutOfPixy);
 $('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu');menu.classList.remove('hidden');$('profileMoreBtn').setAttribute('aria-expanded','true');});
 $('profileMoreClose')?.addEventListener('click',()=>{$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');});
 $('refreshNotifications')?.addEventListener('click',loadNotifications);
+$('enableCallNotifications')?.addEventListener('click',async()=>{
+ if(!('Notification' in window))return toast('Этот браузер не поддерживает уведомления.');
+ try{const permission=await Notification.requestPermission();toast(permission==='granted'?'Уведомления о звонках включены.':'Разрешение на уведомления не выдано.');$('enableCallNotifications').classList.toggle('hidden',permission==='granted')}catch(err){toast('Не удалось включить уведомления.')}
+});
 document.addEventListener('click',e=>{if(!e.target.closest('.profile-actions')){$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false')}});
 
 let activityRealtimeChannel=null,activityToastTimer=null;
@@ -376,10 +380,18 @@ function startCallTone(kind){
  const playPattern=()=>{
   if(!pixyAudioContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;pixyAudioContext=new AC()}
   const ctx=pixyAudioContext;if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-  const freqs=kind==='incoming'?[659,784]:[425,0];
-  freqs.forEach((freq,i)=>{if(!freq)return;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.07,ctx.currentTime+.04);gain.gain.setValueAtTime(.07,ctx.currentTime+.28);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.34);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.92);callToneOscillators.push(osc)});
+  const incoming=kind==='incoming',freqs=incoming?[659,784]:[425];
+  freqs.forEach((freq,i)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain(),now=ctx.currentTime;
+   osc.type='sine';osc.frequency.value=freq;
+   gain.gain.setValueAtTime(.0001,now);
+   gain.gain.exponentialRampToValueAtTime(incoming?.065:.075,now+.06);
+   gain.gain.setValueAtTime(incoming?.065:.075,now+(incoming?1.05:1.75));
+   gain.gain.exponentialRampToValueAtTime(.0001,now+(incoming?1.28:1.95));
+   osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+(incoming?1.32:2.0));callToneOscillators.push(osc);
+  });
  };
- playPattern();callToneTimer=setInterval(playPattern,kind==='incoming'?2600:3600);
+ playPattern();callToneTimer=setInterval(playPattern,kind==='incoming'?3200:6000);
 }
 
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
@@ -402,11 +414,18 @@ async function ensureCallChannel(cid=activeConversation){
  if(!cid)throw new Error('Сначала открой переписку.');
  const ch=await subscribeCallChannel(cid);activeCallChannel=ch;callChannelConversation=cid;return ch;
 }
+function showIncomingCallNotification(invite){
+ if(!document.hidden||!('Notification' in window)||Notification.permission!=='granted')return;
+ try{
+  const n=new Notification('Входящий звонок PIXY',{body:'Тебе звонят. Нажми, чтобы открыть экран звонка.',tag:'pixy-call-'+invite.id,requireInteraction:true});
+  n.onclick=()=>{try{window.focus();n.close()}catch(_){}};
+ }catch(err){console.warn('PIXY call notification:',err)}
+}
 async function initIncomingCallListeners(){
  if(!sb||!user)return;
  if(callInboxChannel)try{await sb.removeChannel(callInboxChannel)}catch(_){}
  callInboxChannel=sb.channel('pixy-call-invites-'+user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'call_invites',filter:'callee_id=eq.'+user.id},async payload=>{
-  const invite=payload.new;if(!invite?.conversation_id||!invite?.caller_id||callDirection||callPeer)return;
+  const invite=payload.new;if(!invite?.conversation_id||!invite?.caller_id||callDirection||callPeer)return;showIncomingCallNotification(invite);
   try{const {data:blocked}=await sb.from('user_blocks').select('blocked_id').eq('owner_id',user.id).eq('blocked_id',invite.caller_id).maybeSingle();if(blocked)return;
    const {data:member}=await sb.from('conversation_members').select('conversation_id').eq('conversation_id',invite.conversation_id).eq('user_id',user.id).maybeSingle();if(!member)return;
    const ch=await subscribeCallChannel(invite.conversation_id);activeCallChannel=ch;callChannelConversation=invite.conversation_id;activeConversation=invite.conversation_id;activeChatUser=invite.caller_id;

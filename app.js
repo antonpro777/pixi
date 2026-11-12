@@ -600,14 +600,13 @@ function startCameraFxRender(){
      }else if(cameraMask==='eyes'){
       // Сильное увеличение областей глаз: пиксели берутся из меньшего круга,
       // поэтому реальные глаза в кадре становятся заметно крупнее, без наклеек.
-      for(const ex of [.395,.605]){
-       const ex0=w*ex,ey0=h*.425,er=w*.088,eyr=er*.72;
-       const ed=Math.hypot((x-ex0)/er,(y-ey0)/eyr);
+      // Увеличение настоящих глаз через локальную деформацию пикселей лица.
+      for(const ex of [.405,.595]){
+       const ex0=w*ex,ey0=h*.405,er=w*.072,eyr=h*.055;
+       const dxEye=(x-ex0)/er,dyEye=(y-ey0)/eyr,ed=Math.sqrt(dxEye*dxEye+dyEye*dyEye);
        if(ed<1){
-        const bulge=1-.64*(1-ed*ed)*(1-ed*ed);
-        sx=ex0+(x-ex0)*bulge;
-        sy=ey0+(y-ey0)*bulge;
-        break;
+        const falloff=(1-ed*ed)*(1-ed*ed),bulge=1-.72*falloff;
+        sx=ex0+(x-ex0)*bulge;sy=ey0+(y-ey0)*bulge;break;
        }
       }
      }
@@ -615,9 +614,7 @@ function startCameraFxRender(){
      dst[a]=src[b];dst[a+1]=src[b+1];dst[a+2]=src[b+2];dst[a+3]=src[b+3];
     }
     ctx.putImageData(image,0,0);
-    if(cameraMask==='eyes'){
-     for(const ex of [.41,.59]){const x=w*ex,y=h*.43;ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x,y,w*.047,h*.036,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#27213a';ctx.beginPath();ctx.arc(x,y,w*.015,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x-w*.005,y-h*.009,w*.005,0,Math.PI*2);ctx.fill()}
-    }
+    
    }
   }
   zoomRenderFrame=requestAnimationFrame(draw);
@@ -650,9 +647,12 @@ function setCaptureMode(m){
 }
 function openComposer(){
  if(!user)return toast('Сначала войди в PIXY.');
- $('composerModal').classList.remove('hidden');$('postFile').value='';selectedFiles=[];selectedFile=null;
- $('filePreview').innerHTML='';$('cameraPublishPanel').classList.add('hidden');$('postCaption').value='';
- $('postMusic').value=selectedMusicId||'';$('postForm').querySelector('button[type=submit]').disabled=false;
+ $('composerModal').classList.remove('hidden');$('composerModal').classList.add('camera-opening');
+ $('postFile').value='';selectedFiles=[];selectedFile=null;reviewStoryMode=false;reviewFilter='none';
+ $('filePreview').innerHTML='';$('cameraReviewScreen').classList.add('hidden');$('publishDetailsScreen').classList.add('hidden');$('reviewSoundPanel').classList.add('hidden');
+ $('cameraPublishPanel').classList.add('hidden');$('postCaption').value='';$('postMusic').value=selectedMusicId||'';
+ $('postForm').querySelector('button[type=submit]').disabled=false;
+ $('originalVolume').value='100';$('musicVolume').value='70';$('originalVolumeValue').textContent='100%';$('musicVolumeValue').textContent='70%';
  setCaptureMode('photo');loadMusicLibrary();startCamera();
 }
 $('openComposer').onclick=$('bannerCreate').onclick=()=>openComposer();$('mobileCreateBtn').onclick=()=>openComposer();$('videoCreate').onclick=()=>{openComposer();setCaptureMode('video')};
@@ -660,12 +660,34 @@ $('capturePhotoMode').onclick=()=>setCaptureMode('photo');$('captureVideoMode').
 async function flipCamera(){cameraFacing=cameraFacing==='environment'?'user':'environment';await startCamera()}
 $('cameraFlipBtn').onclick=flipCamera;$('cameraFlipBottom').onclick=flipCamera;
 $('galleryPickBtn').onclick=()=>{stopCamera();$('postFile').multiple=true;$('postFile').accept='image/*,video/mp4,video/webm,video/quicktime';$('postFile').click()};
+let reviewObjectUrls=[];
+let reviewStoryMode=false;
+let reviewFilter='none';
+function syncReviewAudio(){
+ const video=$('filePreview').querySelector('video'),music=$('reviewMusicAudio');
+ const original=Number($('originalVolume')?.value??100)/100;
+ if(video){video.volume=original;video.muted=original===0}
+ if(music)music.volume=Number($('musicVolume')?.value??70)/100;
+ const track=availableMusic.find(t=>t.id===selectedMusicId);
+ $('reviewMusicName').textContent=track?track.title:'Музыка не выбрана';
+}
 function setComposerFiles(files,m){
  selectedFiles=files;selectedFile=files[0]||null;$('postMode').value=m;
- const p=$('filePreview');p.innerHTML='';
- files.forEach(f=>{const u=URL.createObjectURL(f),el=document.createElement(f.type.startsWith('video/')?'video':'img');el.src=u;if(el.tagName==='VIDEO'){el.controls=true;el.playsInline=true}p.append(el)});
- $('cameraPublishPanel').classList.remove('hidden');
- $('cameraHint').textContent=m==='carousel'?'Выбрано '+files.length+' фото':m==='video'?'Видео готово':'Фото готово';
+ const p=$('filePreview');p.innerHTML='';reviewObjectUrls.forEach(URL.revokeObjectURL);reviewObjectUrls=[];
+ files.forEach((f,i)=>{
+  const u=URL.createObjectURL(f);reviewObjectUrls.push(u);
+  const el=document.createElement(f.type.startsWith('video/')?'video':'img');el.src=u;el.dataset.reviewIndex=String(i);
+  if(el.tagName==='VIDEO'){el.autoplay=true;el.loop=true;el.muted=true;el.playsInline=true;el.preload='auto';el.addEventListener('click',()=>{if(el.paused)el.play().catch(()=>{});else el.pause()})}
+  p.append(el);
+ });
+ const audio=document.createElement('audio');audio.id='reviewMusicAudio';audio.loop=true;audio.preload='auto';p.append(audio);
+ const track=availableMusic.find(t=>t.id===selectedMusicId);if(track)audio.src=track.audio_url;
+ $('reviewKindLabel').textContent=m==='carousel'?'ФОТО · '+files.length:m==='video'?'ВИДЕО · ПОВТОР':'ФОТО';
+ $('cameraReviewScreen').classList.remove('hidden');$('cameraReviewScreen').classList.add('review-enter');
+ $('publishDetailsScreen').classList.add('hidden');$('cameraPublishPanel').classList.add('hidden');
+ $('cameraHint').textContent=m==='carousel'?'Фото готовы':m==='video'?'Видео готово к просмотру':'Фото готово';
+ const vid=p.querySelector('video');if(vid)vid.play().catch(()=>{});
+ syncReviewAudio();
 }
 function readVideoDuration(f){return new Promise(resolve=>{const u=URL.createObjectURL(f),v=document.createElement('video');let done=false;const finish=d=>{if(done)return;done=true;URL.revokeObjectURL(u);v.removeAttribute('src');v.load();resolve(d)};v.preload='metadata';v.onloadedmetadata=()=>finish(Number.isFinite(v.duration)?v.duration:null);v.onerror=()=>finish(null);v.src=u;v.load();setTimeout(()=>finish(null),5000)})}
 $('postFile').onchange=async e=>{
@@ -711,7 +733,7 @@ $('postForm').addEventListener('submit',async e=>{
    media_url:uploaded[0].url,
    media_type:isVideo?'video':'image',
    media_items:isVideo?[]:uploaded,
-   music_url:track&&!isRecordedVideo?track.audio_url:null,
+   music_url:track?track.audio_url:null,
    music_title:track?.title||null,
    visibility:'public'
   };
@@ -738,20 +760,10 @@ $('postForm').addEventListener('submit',async e=>{
  }
 });
 async function makeRecordingStream(){
- const selected=availableMusic.find(t=>t.id===selectedMusicId);
+ // Исходный микрофон записывается отдельно; музыка накладывается после записи
+ // отдельной дорожкой, чтобы громкость двух источников можно было менять раздельно.
  const zoomTrack=makeZoomedVideoTrack();
- if(!selected)return new MediaStream([zoomTrack,...cameraStream.getAudioTracks()]);
- const AudioCtx=window.AudioContext||window.webkitAudioContext;
- if(!AudioCtx||!window.MediaStreamAudioDestinationNode)throw new Error('Этот браузер не поддерживает запись музыки вместе с видео.');
- const ctx=new AudioCtx();recordAudioContext=ctx;await ctx.resume();
- const mixed=ctx.createMediaStreamDestination();
- const micTracks=cameraStream.getAudioTracks();
- if(micTracks.length){const mic=new MediaStream(micTracks);ctx.createMediaStreamSource(mic).connect(mixed)}
- const music=new Audio();music.crossOrigin='anonymous';music.src=selected.audio_url;music.loop=true;music.preload='auto';
- const source=ctx.createMediaElementSource(music);source.connect(mixed);source.connect(ctx.destination);
- recordMusicElement=music;
- try{await music.play()}catch(err){stopRecordingAudio();throw new Error('Не удалось запустить выбранный трек. Попробуй выбрать его ещё раз.')}
- return new MediaStream([zoomTrack,...mixed.stream.getAudioTracks()]);
+ return new MediaStream([zoomTrack,...cameraStream.getAudioTracks()]);
 }
 function stopVideoRecording(auto=false){
  if(mediaRecorder?.state!=='recording')return;

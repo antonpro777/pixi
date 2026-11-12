@@ -680,3 +680,22 @@ body.call-active{overflow:hidden}
 @media(prefers-reduced-motion:reduce){
  .camera-review-screen,.camera-review-media img,.view.view-enter,.profile-cover,.profile-cover:after{animation:none!important;transition:none!important}
 }
+
+
+.camera-live-wrap:has(#cameraReviewScreen:not(.hidden)) .camera-bottom,
+.camera-live-wrap:has(#cameraReviewScreen:not(.hidden)) .camera-mode-row,
+.camera-live-wrap:has(#cameraReviewScreen:not(.hidden)) .camera-zoom,
+.camera-live-wrap:has(#cameraReviewScreen:not(.hidden)) .camera-mask-picker,
+.camera-live-wrap:has(#cameraReviewScreen:not(.hidden)) .camera-sound-pill,
+.camera-live-wrap:has(#cameraReviewScreen:not(.hidden)) .camera-topline,
+.camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-bottom,
+.camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-mode-row,
+.camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-zoom,
+.camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-mask-picker,
+.camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-sound-pill,
+.camera-live-wrap:has(#publishDetailsScreen:not(.hidden)) .camera-topline{opacity:0;pointer-events:none}
+.profile-main{animation:profileRise .38s cubic-bezier(.2,.75,.25,1) both}
+@keyframes profileRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.post-carousel.is-turning img{transform:translateX(-28px) rotateY(-10deg) scale(.985);opacity:.28;filter:blur(2px)}
+.post-carousel.carousel-arrive img{animation:carouselSlideIn .32s cubic-bezier(.2,.75,.25,1) both}
+@keyframes carouselSlideIn{from{opacity:.45;transform:translateX(24px) rotateY(8deg) scale(.985);filter:blur(2px)}to{opacity:1;transform:translateX(0) rotateY(0) scale(1);filter:blur(0)}}

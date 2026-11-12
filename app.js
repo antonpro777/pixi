@@ -889,8 +889,9 @@ $('soundUseBtn').onclick=()=>{
 };
 $('reviewBackBtn').onclick=()=>{
  const music=$('reviewMusicAudio');if(music)music.pause();
- $('cameraReviewScreen').classList.add('hidden');selectedFiles=[];selectedFile=null;
- if(!cameraStream)startCamera();
+ $('cameraReviewScreen').classList.add('hidden');$('publishDetailsScreen').classList.add('hidden');
+ selectedFiles=[];selectedFile=null;
+ if(!cameraStream)startCamera();else if(!$('cameraFxCanvas').width||!zoomCanvasStream)startCameraFxRender();
 };
 $('reviewNextBtn').onclick=()=>{
  $('cameraReviewScreen').classList.add('review-exit');

@@ -308,7 +308,7 @@ async function startVoiceCall(){
  if(!activeChatUser)return toast('Сначала выбери человека для звонка.');if(!activeConversation){const {data:cid,error}=await sb.rpc('create_direct_conversation',{other_user:activeChatUser});if(error||!cid)return toast(error?.message||'Не удалось подготовить звонок.');activeConversation=cid;}
  if(callDirection||callPeer)return toast('Звонок уже идёт.');
  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return toast('Браузер не поддерживает интернет-звонки.');
- callDirection='outgoing';callPeerName=$('chatTitle').textContent||'Контакт';callUi(true,'Вызов…');startCallTone('outgoing');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
+ callDirection='outgoing';await loadCallPeerProfile(activeChatUser,$('chatTitle').textContent||'Контакт');callUi(true,'Вызов…');startCallTone('outgoing');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
  try{await ensureCallChannel(activeConversation);const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});if(inviteError)throw inviteError;const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
  catch(err){console.error('PIXY call start:',err);toast('Не удалось начать звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
 }
@@ -408,10 +408,8 @@ async function startDirectChatWith(profileUser,callAfter=false){
  const {data:cid,error}=await sb.rpc('create_direct_conversation',{other_user:profileUser.id});
  if(error||!cid)return toast(error?.message||'Не удалось открыть переписку.');
  $('publicProfileModal').classList.add('hidden');
- nav('messages');
- await loadChatList();
- await openChat(cid,profileUser.id,profileUser.username||'user');
- if(callAfter)await startVoiceCall();
+ if(callAfter){activeConversation=cid;activeChatUser=profileUser.id;await sb.from('chat_hidden').upsert({owner_id:user.id,conversation_id:cid},{onConflict:'owner_id,conversation_id'});await startVoiceCall();return}
+ nav('messages');await loadChatList();await openChat(cid,profileUser.id,profileUser.username||'user');
 }
 async function openPublicProfile(id){
  if(!sb||!id)return;if(id===user?.id){nav('profile');return}

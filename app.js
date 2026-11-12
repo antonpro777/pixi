@@ -395,7 +395,7 @@ function startCallTone(kind){
 }
 
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
-let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='',callInboxChannel=null;
+let activeCallChannel=null,callChannelConversation=null,callPeer=null,callLocalStream=null,callPendingOffer=null,callPendingIce=[],callTimer=null,callStartedAt=0,callMuted=false,callSpeakerOn=true,callDirection='',callPeerName='',callPeerAvatarUrl='',callInboxChannel=null,callPeerReadyResolve=null,callPeerReadyTimer=null;
 
 function callUi(show,status){$('callOverlay').classList.toggle('hidden',!show);document.body.classList.toggle('call-active',!!show);$('callStatus').textContent=status||'';$('callName').textContent=callPeerName||$('chatTitle').textContent||'Контакт';const av=$('callAvatar');av.textContent=(callPeerAvatarUrl?'':(callPeerName||'P').replace(/^@/,'').slice(0,1).toUpperCase());try{const u=new URL(callPeerAvatarUrl);av.style.backgroundImage=u.protocol==='https:'?'url("'+u.href.replaceAll('"','%22')+'")':'';av.style.backgroundSize='cover';av.style.backgroundPosition='center'}catch(_){av.style.backgroundImage=''}}
 async function loadCallPeerProfile(uid,fallback){try{const {data}=await sb.from('profiles').select('display_name,avatar_url').eq('id',uid).maybeSingle();callPeerName=data?.display_name||fallback||'Контакт';callPeerAvatarUrl=data?.avatar_url||''}catch(_){callPeerName=fallback||'Контакт';callPeerAvatarUrl=''}}
@@ -452,7 +452,16 @@ async function startVoiceCall(){
  if(callDirection||callPeer)return toast('Звонок уже идёт.');
  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return toast('Браузер не поддерживает интернет-звонки.');
  callDirection='outgoing';await loadCallPeerProfile(activeChatUser,$('chatTitle').textContent||'Контакт');callUi(true,'Вызов…');startCallTone('outgoing');$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');
- try{await ensureCallChannel(activeConversation);const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});if(inviteError)throw inviteError;const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})}
+ try{
+  await ensureCallChannel(activeConversation);
+  const {error:inviteError}=await sb.from('call_invites').insert({conversation_id:activeConversation,caller_id:user.id,callee_id:activeChatUser});
+  if(inviteError)throw inviteError;
+  await new Promise((resolve,reject)=>{
+   callPeerReadyResolve=resolve;
+   callPeerReadyTimer=setTimeout(()=>{if(callPeerReadyResolve===resolve){callPeerReadyResolve=null;reject(new Error('Собеседник не подключился к звонку.'))}},15000);
+  });
+  const pc=await createCallPeer();const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendCallSignal('offer',{description:pc.localDescription})
+}
  catch(err){console.error('PIXY call start:',err);toast('Не удалось начать звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
 }
 async function acceptVoiceCall(){
@@ -464,14 +473,15 @@ async function acceptVoiceCall(){
 async function handleCallSignal(s,cid=callChannelConversation){
  if(!s||s.from===user?.id)return;
  if(cid){activeCallChannel=callChannels.get(cid)||activeCallChannel;callChannelConversation=cid;}
- if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';activeConversation=cid||activeConversation;activeChatUser=s.from;await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');startCallTone('incoming');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden')}
+ if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';activeConversation=cid||activeConversation;activeChatUser=s.from;await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');startCallTone('incoming');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden');sendCallSignal('ready').catch(console.warn)}
+ else if(s.type==='ready'){if(callPeerReadyTimer){clearTimeout(callPeerReadyTimer);callPeerReadyTimer=null}const resolve=callPeerReadyResolve;callPeerReadyResolve=null;resolve?.()}
  else if(s.type==='offer'){stopCallTone();callPendingOffer=s.description;if(!callDirection){callDirection='incoming';await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden')}if($('callAcceptBtn').dataset.acceptRequested==='1')await acceptVoiceCall()}
  else if(s.type==='answer'&&callPeer){stopCallTone();try{await callPeer.setRemoteDescription(new RTCSessionDescription(s.description));for(const c of callPendingIce.splice(0)){await callPeer.addIceCandidate(new RTCIceCandidate(c))}}catch(err){console.warn(err)}}
  else if(s.type==='ice'){if(callPeer?.remoteDescription){try{await callPeer.addIceCandidate(new RTCIceCandidate(s.candidate))}catch(err){console.warn(err)}}else callPendingIce.push(s.candidate)}
  else if(['hangup','decline','busy'].includes(s.type)){stopCallTone();await endVoiceCall(false);toast(s.type==='busy'?'Собеседник уже разговаривает.':s.type==='decline'?'Вызов отклонён.':'Звонок завершён.')}
 }
 async function endVoiceCall(notify=true){
- stopCallTone();playPixyBeep('call-end');if(notify&&activeCallChannel){try{await sendCallSignal(callDirection==='incoming'?'decline':'hangup')}catch(_){}}
+ stopCallTone();if(callPeerReadyTimer){clearTimeout(callPeerReadyTimer);callPeerReadyTimer=null}callPeerReadyResolve=null;playPixyBeep('call-end');if(notify&&activeCallChannel){try{await sendCallSignal(callDirection==='incoming'?'decline':'hangup')}catch(_){}}
  if(callTimer){clearInterval(callTimer);callTimer=null}if(callPeer){try{callPeer.close()}catch(_){}callPeer=null}if(callLocalStream){callLocalStream.getTracks().forEach(t=>t.stop());callLocalStream=null}
  const a=$('callRemoteAudio');a.pause();a.srcObject=null;a.muted=false;callPendingOffer=null;callPendingIce=[];callStartedAt=0;callMuted=false;callSpeakerOn=true;callDirection='';
  $('callTimer').textContent='00:00';$('callMuteBtn').textContent='Выключить микрофон';$('callSpeakerBtn').textContent='Выключить громкую связь';$('callAcceptBtn').dataset.acceptRequested='0';callUi(false,'');

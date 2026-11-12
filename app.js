@@ -689,7 +689,7 @@ $('feed').addEventListener('click',async e=>{
  if(c){openComments(c.dataset.comment);return}
 });
 
-let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,recordCountdownTimer=null,recordStartedAt=0,cameraFacing='environment',captureMode='photo',cameraBusy=false,captureDelayValue=3,captureDelayTimer=null,captureDelayResolve=null,captureDelayActive=false;
+let cameraStream=null,mediaRecorder=null,recordedChunks=[],recordTimer=null,recordCountdownTimer=null,recordStartedAt=0,cameraFacing='environment',captureMode='photo',cameraBusy=false,captureDelayValue=0,captureDelayTimer=null,captureDelayResolve=null,captureDelayActive=false;
 let selectedMusicId='',pickerMusicId='',recordAudioContext=null,recordMusicElement=null,cameraZoomHardware=false,zoomCanvasStream=null,zoomRenderFrame=0;
 function stopRecordingAudio(){
  if(recordMusicElement){try{recordMusicElement.pause();recordMusicElement.removeAttribute('src');recordMusicElement.load()}catch(_){}recordMusicElement=null}
@@ -707,7 +707,7 @@ function stopCamera(){
  const p=$('cameraPreview');if(p)p.srcObject=null;
 }
 
-let cameraMask='none',lastFxFrameAt=0,captureDelayValue=0,captureDelayTimer=null,captureDelayResolve=null,captureDelayActive=false;
+let cameraMask='none',lastFxFrameAt=0;
 let faceLandmarker=null,faceLandmarkerLoading=null,faceLandmarks=null,lastFaceDetectAt=0,cameraStartPromise=null;
 async function loadFaceLandmarker(){
  if(faceLandmarker||faceLandmarkerLoading)return faceLandmarkerLoading;
@@ -840,7 +840,7 @@ function openComposer(){
 $('openComposer').onclick=$('bannerCreate').onclick=()=>openComposer();$('mobileCreateBtn').onclick=()=>openComposer();$('videoCreate').onclick=()=>{openComposer();setCaptureMode('video')};
 $('capturePhotoMode').onclick=()=>setCaptureMode('photo');$('captureVideoMode').onclick=()=>setCaptureMode('video');
 async function flipCamera(){cameraFacing=cameraFacing==='environment'?'user':'environment';await startCamera()}
-$('cameraFlipBtn').onclick=flipCamera;$('cameraFlipBottom').onclick=flipCamera;
+$('cameraFlipBtn').onclick=flipCamera;if($('cameraFlipBottom'))$('cameraFlipBottom').onclick=flipCamera;
 $('galleryPickBtn').onclick=()=>{stopCamera();$('postFile').multiple=true;$('postFile').accept='image/*,video/mp4,video/webm,video/quicktime';$('postFile').click()};
 let reviewObjectUrls=[],reviewOriginalFiles=[],reviewFilterToken=0;
 let reviewStoryMode=false;

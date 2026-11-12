@@ -686,7 +686,7 @@ $('capturePhotoMode').onclick=()=>setCaptureMode('photo');$('captureVideoMode').
 async function flipCamera(){cameraFacing=cameraFacing==='environment'?'user':'environment';await startCamera()}
 $('cameraFlipBtn').onclick=flipCamera;$('cameraFlipBottom').onclick=flipCamera;
 $('galleryPickBtn').onclick=()=>{stopCamera();$('postFile').multiple=true;$('postFile').accept='image/*,video/mp4,video/webm,video/quicktime';$('postFile').click()};
-let reviewObjectUrls=[];
+let reviewObjectUrls=[],reviewOriginalFiles=[],reviewFilterToken=0;
 let reviewStoryMode=false;
 let reviewFilter='none';
 function syncReviewAudio(){
@@ -698,7 +698,7 @@ function syncReviewAudio(){
  $('reviewMusicName').textContent=track?track.title:'Музыка не выбрана';
 }
 function setComposerFiles(files,m){
- selectedFiles=files;selectedFile=files[0]||null;$('postMode').value=m;
+ selectedFiles=files;reviewOriginalFiles=files.slice();selectedFile=files[0]||null;$('postMode').value=m;
  const p=$('filePreview');p.innerHTML='';reviewObjectUrls.forEach(URL.revokeObjectURL);reviewObjectUrls=[];
  files.forEach((f,i)=>{
   const u=URL.createObjectURL(f);reviewObjectUrls.push(u);
@@ -925,10 +925,32 @@ $('filePreview').addEventListener('pointerup',e=>{
  $('reviewKindLabel').textContent='ФОТО · '+(next+1)+' / '+selectedFiles.length;
 });
 $('filePreview').addEventListener('click',e=>{if(e.target.closest('video'))return});
-document.querySelectorAll('[data-video-filter]').forEach(b=>b.onclick=()=>{
+async function bakeImageFilter(file,filter){
+ const filters={none:'none',warm:'saturate(1.25) sepia(.22)',mono:'grayscale(1)',dream:'saturate(.82) brightness(1.12) contrast(.9)'};
+ const url=URL.createObjectURL(file);
+ try{
+  const img=new Image();img.src=url;await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject});
+  const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+  const ctx=canvas.getContext('2d');ctx.filter=filters[filter]||'none';ctx.drawImage(img,0,0);
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));if(!blob)throw new Error('Не удалось применить фильтр');
+  return new File([blob],file.name.replace(/\.[^.]+$/,'')+'-'+filter+'.jpg',{type:'image/jpeg'});
+ }finally{URL.revokeObjectURL(url)}
+}
+document.querySelectorAll('[data-video-filter]').forEach(b=>b.onclick=async()=>{
  reviewFilter=b.dataset.videoFilter;document.querySelectorAll('[data-video-filter]').forEach(x=>x.classList.toggle('active',x===b));
  const filters={none:'none',warm:'saturate(1.25) sepia(.22)',mono:'grayscale(1)',dream:'saturate(.82) brightness(1.12) contrast(.9)'};
- $('filePreview').style.filter=filters[reviewFilter]||'none';
+ const token=++reviewFilterToken;
+ if(reviewOriginalFiles.length&&reviewOriginalFiles.every(file=>file.type.startsWith('image/'))){
+  try{
+   const processed=await Promise.all(reviewOriginalFiles.map(file=>bakeImageFilter(file,reviewFilter)));
+   if(token!==reviewFilterToken)return;
+   selectedFiles=processed;selectedFile=processed[0]||null;
+   reviewObjectUrls.forEach(URL.revokeObjectURL);reviewObjectUrls=[];
+   const images=[...$('filePreview').querySelectorAll('img')];
+   images.forEach((im,i)=>{const url=URL.createObjectURL(processed[i]);reviewObjectUrls.push(url);im.src=url});
+   $('filePreview').style.filter='none';
+  }catch(err){toast(err.message||'Не удалось применить фильтр')}
+ }else $('filePreview').style.filter=filters[reviewFilter]||'none';
 });
 $('soundRemoveBtn').onclick=()=>{
  selectedMusicId='';pickerMusicId='';$('postMusic').value='';$('cameraSoundLabel').textContent='Добавить звук';$('cameraSoundPill').classList.remove('has-track');

@@ -178,7 +178,7 @@ function bindVideoAudio(root){
 }
 async function loadFeed(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
+ const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified),comments(count),reactions(user_id,reaction)').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){console.warn(error);toast('Не удалось загрузить ленту: '+error.message);return}
  const feed=$('feed');
  if(!data?.length){feed.innerHTML='<div class="empty-state"><div class="empty-icon">✧</div><h2>Лента только начинается</h2><p>Опубликуй первый момент и позови друзей в PIXY.</p></div>';return}
@@ -193,7 +193,7 @@ async function loadFeed(){
 }
 async function loadVideos(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').eq('visibility','public').order('created_at',{ascending:false}).limit(30);
+ const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,music_url,music_title,created_at,profiles!posts_author_id_fkey(username,display_name)').eq('media_type','video').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){$('view-videos').innerHTML='<p class="hint">'+safe(error.message)+'</p>';return}
  $('view-videos').innerHTML=(data||[]).map(p=>'<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><b>@'+safe(p.profiles?.username||'user')+'</b><small>'+new Date(p.created_at).toLocaleString()+'</small></div><div class="post-video-wrap"><video controls playsinline '+(p.music_url?'muted data-video-music="1"':'')+' preload="metadata" src="'+safe(p.media_url)+'"></video>'+(p.music_url?'<audio data-video-audio="1" preload="none" loop src="'+safe(p.music_url)+'"></audio>':'')+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p>'+safe(p.caption||'')+'</p>'+(p.author_id===user?.id?'<button class="post-delete-btn" type="button" title="Удалить публикацию" aria-label="Удалить публикацию" data-delete-post="'+p.id+'">🗑</button>':'')+'</article>').join('')||'<div class="empty-state"><h2>Пока нет видео</h2><button class="primary-btn" id="videoCreate">＋ Загрузить видео</button></div>';
  const b=$('view-videos').querySelector('#videoCreate');if(b)b.onclick=()=>openComposer('video');
@@ -395,7 +395,7 @@ async function openPublicProfile(id){
   sb.from('profiles').select('id,username,display_name,bio,avatar_url,is_verified').eq('id',id).maybeSingle(),
   sb.from('follows').select('*',{count:'exact',head:true}).eq('following_id',id),
   sb.from('follows').select('*',{count:'exact',head:true}).eq('follower_id',id),
-  sb.from('posts').select('id,media_url,media_type,caption,created_at').eq('author_id',id).eq('visibility','public').order('created_at',{ascending:false}).limit(60)
+  sb.from('posts').select('id,media_url,media_type,caption,created_at').eq('author_id',id).in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(60)
  ]);
  if(error||!p){$('publicProfileContent').innerHTML='<div class="profile-view-loading">Не удалось загрузить профиль.</div>';return}
  const {data:rel}=user?await sb.from('follows').select('following_id').eq('follower_id',user.id).eq('following_id',id).maybeSingle():{data:null};
@@ -651,7 +651,7 @@ function openComposer(){
  $('postFile').value='';selectedFiles=[];selectedFile=null;reviewStoryMode=false;reviewFilter='none';
  $('filePreview').innerHTML='';$('cameraReviewScreen').classList.add('hidden');$('publishDetailsScreen').classList.add('hidden');$('reviewSoundPanel').classList.add('hidden');
  $('cameraPublishPanel').classList.add('hidden');$('postCaption').value='';$('postMusic').value=selectedMusicId||'';
- $('postForm').querySelector('button[type=submit]').disabled=false;
+ $('postForm').querySelector('button[type=submit]').disabled=false;$('postForm').querySelector('button[type=submit]').textContent='Опубликовать';
  $('originalVolume').value='100';$('musicVolume').value='70';$('originalVolumeValue').textContent='100%';$('musicVolumeValue').textContent='70%';
  setCaptureMode('photo');loadMusicLibrary();startCamera();
 }
@@ -746,14 +746,15 @@ $('postForm').addEventListener('submit',async e=>{
    if(insertError)throw insertError;
   }
   if(status)status.textContent='Опубликовано!';
+  const publishedAsStory=reviewStoryMode;
   stopCamera();
+  const reviewMusic=$('reviewMusicAudio');if(reviewMusic)reviewMusic.pause();
   $('composerModal').classList.add('hidden');
   $('soundPicker').classList.add('hidden');
-  $('cameraPublishPanel').classList.add('hidden');
-  $('postCaption').value='';
-  $('postFile').value='';
-  selectedFiles=[];selectedFile=null;
-  toast('Публикация добавлена в PIXY!');
+  $('cameraPublishPanel').classList.add('hidden');$('cameraReviewScreen').classList.add('hidden');$('publishDetailsScreen').classList.add('hidden');
+  $('postCaption').value='';$('postFile').value='';
+  selectedFiles=[];selectedFile=null;reviewStoryMode=false;
+  toast(publishedAsStory?'История опубликована на 24 часа':'Публикация добавлена в PIXY!');
   await Promise.all([loadFeed(),loadProfilePosts(),loadStories()]);
  }catch(err){
   console.error('PIXY publish error:',err);

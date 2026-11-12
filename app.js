@@ -21,7 +21,7 @@ window.addEventListener('unhandledrejection',event=>{
 const toast=(m)=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)};
 const authStatus=(m,err=false)=>{$('authStatus').textContent=m;$('authStatus').style.color=err?'#ff9dba':'#9debd6'};
 const setAuth=(mode)=>{authMode=mode;['loginForm','signupForm','verifyForm','resetForm','newPasswordForm'].forEach(id=>$(id).classList.add('hidden'));$(mode+'Form').classList.remove('hidden');$('auth').classList.remove('hidden');$('app').classList.add('hidden');$('authStatus').textContent='';$('authSwitch').classList.toggle('hidden',mode==='verify'||mode==='reset'||mode==='newPassword');$('authTitle').textContent=mode==='signup'?'Создай свой мир.':mode==='verify'?'Проверь почту.':mode==='reset'?'Восстановим доступ.':mode==='newPassword'?'Новый пароль.':'С возвращением.';$('authSub').textContent=mode==='signup'?'Присоединяйся к PIXY.':mode==='verify'?'Мы отправили тебе код подтверждения.':mode==='reset'?'Отправим код для восстановления.':mode==='newPassword'?'Придумай новый надёжный пароль.':'Войди в свой мир PIXY.';$('authSwitch').innerHTML=mode==='signup'?'Уже есть аккаунт? <button id="showLogin">Войти</button>':mode==='login'?'Впервые здесь? <button id="showSignup">Создать аккаунт</button>':'<button id="backLogin">← Вернуться ко входу</button>';if($('showLogin'))$('showLogin').onclick=()=>setAuth('login');if($('showSignup'))$('showSignup').onclick=()=>setAuth('signup');if($('backLogin'))$('backLogin').onclick=()=>setAuth('login')};
-function showApp(){initIncomingCallListeners(); $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet()}
+function showApp(){initIncomingCallListeners();initializeActivitySeen();setupActivityRealtime(); $('auth').classList.add('hidden');$('app').classList.remove('hidden');$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet();loadNotifications();refreshChatBadge()}
 function nav(view){
  $('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');
  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
@@ -30,7 +30,7 @@ function nav(view){
  document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
  const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],notifications:['ТВОЯ АКТИВНОСТЬ','Уведомления'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация']};
  $('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';
- if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='notifications'&&user)loadNotifications();if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();
+ if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='notifications'&&user){localStorage.setItem(activitySeenKey(),String(Date.now()));setActivityBadge(0);loadNotifications();}if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();
 }
 document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c){if(c.dataset.close==='composerModal'&&typeof stopCamera==='function')stopCamera();$(c.dataset.close).classList.add('hidden')}});
 $('showSignup').onclick=()=>setAuth('signup');
@@ -94,6 +94,7 @@ $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();if(!
 async function signOutOfPixy(){
  try{
   if(inboxMessagesChannel&&sb){await sb.removeChannel(inboxMessagesChannel);inboxMessagesChannel=null}
+  if(activityRealtimeChannel&&sb){await sb.removeChannel(activityRealtimeChannel);activityRealtimeChannel=null}
   if(sb){const {error}=await sb.auth.signOut();if(error)throw error}
   user=null;profile=null;activeConversation=null;activeChatUser=null;document.body.classList.remove('chat-open','call-active');
   setAuth('login');toast('Ты вышел из аккаунта PIXY.');
@@ -106,6 +107,38 @@ $('profileMoreClose')?.addEventListener('click',()=>{$('profileMoreMenu')?.class
 $('refreshNotifications')?.addEventListener('click',loadNotifications);
 document.addEventListener('click',e=>{if(!e.target.closest('.profile-actions')){$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false')}});
 
+let activityRealtimeChannel=null,activityToastTimer=null;
+function activitySeenKey(){return 'pixy-activity-seen-'+(user?.id||'guest')}
+function initializeActivitySeen(){try{if(!localStorage.getItem(activitySeenKey()))localStorage.setItem(activitySeenKey(),String(Date.now()))}catch(_){}}
+function setCountBadge(id,count){const el=$(id);if(!el)return;const n=Math.max(0,Number(count)||0);el.textContent=n>99?'99+':String(n);el.classList.toggle('hidden',n===0);el.setAttribute('aria-label',n+' непрочитанных')}
+function setActivityBadge(count){setCountBadge('activityCountBadge',count);setCountBadge('activityNavCount',count);const dot=$('notificationDot');if(dot)dot.classList.toggle('hidden',!(Number(count)>0))}
+function setChatBadge(count){setCountBadge('messagesCountBadge',count);setCountBadge('messagesNavCount',count);const dot=document.querySelector('.nav-item[data-view="messages"] .nav-dot');if(dot)dot.classList.toggle('hidden',!(Number(count)>0))}
+function showActivityToast(title,detail,view='notifications'){
+ let el=$('activityToast');if(!el){el=document.createElement('button');el.type='button';el.id='activityToast';el.className='activity-toast hidden';el.innerHTML='<span class="activity-toast-icon">✦</span><span class="activity-toast-copy"><b></b><small></small></span><span class="activity-toast-arrow">›</span>';document.body.append(el)}
+ el.querySelector('b').textContent=title;el.querySelector('small').textContent=detail||'Открой, чтобы посмотреть';el.classList.remove('hidden');el.onclick=()=>{el.classList.add('hidden');nav(view)};
+ clearTimeout(activityToastTimer);activityToastTimer=setTimeout(()=>el.classList.add('hidden'),5200);
+}
+async function refreshChatBadge(){
+ if(!sb||!user)return;
+ try{
+  const {data:chats,error}=await sb.rpc('list_my_direct_chats');if(error)throw error;
+  const rows=chats||[];if(!rows.length){setChatBadge(0);return}
+  const {data:reads}=await sb.from('conversation_members').select('conversation_id,last_read_at').eq('user_id',user.id);
+  const readAt=new Map((reads||[]).map(x=>[x.conversation_id,x.last_read_at]));
+  const counts=await Promise.all(rows.map(async row=>{const {count,error}=await sb.from('messages').select('id',{count:'exact',head:true}).eq('conversation_id',row.conversation_id).neq('sender_id',user.id).gt('created_at',readAt.get(row.conversation_id)||'1970-01-01T00:00:00.000Z');return error?0:(count||0)}));
+  setChatBadge(counts.reduce((a,b)=>a+b,0));
+ }catch(err){console.warn('PIXY total unread:',err)}
+}
+function setupActivityRealtime(){
+ if(!sb||!user||activityRealtimeChannel)return;
+ const owner=user.id;
+ activityRealtimeChannel=sb.channel('pixy-activity-'+owner)
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'follows'},payload=>{if(payload.new?.following_id===owner){showActivityToast('Новая подписка','Кто-то подписался на тебя');loadNotifications()}})
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'comments'},async payload=>{const postId=payload.new?.post_id;if(!postId||payload.new?.author_id===owner)return;const {data}=await sb.from('posts').select('author_id').eq('id',postId).maybeSingle();if(data?.author_id===owner){showActivityToast('Новый комментарий','Кто-то прокомментировал публикацию');loadNotifications()}})
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'reactions'},async payload=>{const postId=payload.new?.post_id;if(!postId||payload.new?.user_id===owner)return;const {data}=await sb.from('posts').select('author_id').eq('id',postId).maybeSingle();if(data?.author_id===owner){showActivityToast('Новая реакция','Кто-то отреагировал на публикацию');loadNotifications()}})
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},payload=>{if(payload.new?.sender_id!==owner){showActivityToast('Новое сообщение','Тебе пришло сообщение','messages');refreshChatBadge();if($('chatPeoplePanel')&&!$('chatPeoplePanel').classList.contains('hidden'))loadChatList()}})
+  .subscribe();
+}
 function withTimeout(promise,ms,message){
  let timer;
  return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms)})]).finally(()=>clearTimeout(timer));
@@ -145,7 +178,8 @@ async function loadNotifications(){
  const icons={message:'✉',follow:'＋',comment:'▤',like:'♥'};
  const colors={message:'message',follow:'follow',comment:'comment',like:'like'};
  box.innerHTML=items.length?items.slice(0,60).map(x=>'<article class="notification-item"><span class="notification-icon '+colors[x.type]+'">'+icons[x.type]+'</span><div class="notification-copy"><b>@'+safe(x.name)+'</b><p>'+safe(x.text)+'</p><small>'+new Date(x.date).toLocaleString()+'</small></div><span class="notification-arrow">›</span></article>').join(''):'<div class="notification-empty"><span>✦</span><b>Пока тихо — и это нормально</b><p>Новые сообщения, подписки, комментарии и реакции появятся здесь.</p></div>';
- const dot=$('notificationDot');if(dot)dot.classList.toggle('hidden',!items.length);
+ let seen=0;try{seen=Number(localStorage.getItem(activitySeenKey()))||Date.now()}catch(_){seen=Date.now()}
+ setActivityBadge(items.filter(x=>new Date(x.date||0).getTime()>seen).length);
 }
 async function loadProfile(){
  if(!sb||!user)return;
@@ -426,6 +460,7 @@ async function loadChatList(){
   if(countError)console.warn('PIXY unread count:',countError.message);
   return [row.conversation_id,countError?0:(count||0)];
  })));
+ setChatBadge([...unreadCounts.values()].reduce((a,b)=>a+b,0));
  if(!inboxMessagesChannel){
   inboxMessagesChannel=sb.channel('pixy-inbox-'+user.id)
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},async payload=>{
@@ -456,7 +491,7 @@ async function refreshChatMessages(cid){
  $('chatMessages').innerHTML=(data||[]).map(m=>{const own=m.sender_id===user.id;const audio=m.attachment_type==='audio'&&m.attachment_url;const bars=Array.from({length:30},(_,i)=>'<i style="height:'+([9,14,20,12,25,17,10,22,15,27,13,19,8,24,16][i%15])+'px"></i>').join('');return '<article class="message-bubble '+(own?'mine':'theirs')+'" data-message-id="'+m.id+'">'+(audio?'<div class="voice-note"><button class="voice-play" type="button" data-voice-play aria-label="Воспроизвести голосовое">▶</button><div class="voice-wave" data-wave>'+bars+'</div><span class="voice-duration">Голосовое</span><audio preload="metadata" src="'+safe(m.attachment_url)+'"></audio></div>':(m.body?'<div class="message-text">'+safe(m.body)+'</div>':''))+'<div class="message-meta"><time>'+new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+'</time>'+(own?'<button type="button" class="message-delete" data-delete-message="'+m.id+'" aria-label="Удалить сообщение">×</button>':'')+'</div></article>'}).join('')||'<p class="hint">Начни переписку!</p>';
  $('chatMessages').querySelectorAll('.voice-note audio').forEach(audio=>{audio.addEventListener('loadedmetadata',()=>{const out=audio.parentElement.querySelector('.voice-duration');if(out&&Number.isFinite(audio.duration)){const sec=Math.floor(audio.duration);out.textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')}})});
  $('chatMessages').scrollTop=$('chatMessages').scrollHeight;
- if(activeConversation===cid)await markConversationRead(cid);
+ if(activeConversation===cid){await markConversationRead(cid);refreshChatBadge()}
 }
 async function openChat(cid,uid,name){
  activeConversation=cid;activeChatUser=uid;await sb.from('chat_hidden').delete().eq('owner_id',user.id).eq('conversation_id',cid);document.body.classList.add('chat-open');$('chatTitle').textContent='@'+name;await loadCallPeerProfile(uid,'@'+name);$('chatPeoplePanel').classList.add('hidden');$('chatConversationPanel').classList.remove('hidden');
@@ -837,7 +872,7 @@ function setComposerFiles(files,m){
  $('cameraReviewScreen').classList.remove('hidden');$('cameraReviewScreen').classList.add('review-enter');
  $('publishDetailsScreen').classList.add('hidden');$('cameraPublishPanel').classList.add('hidden');
  $('cameraHint').textContent=m==='carousel'?'Фото готовы':m==='video'?'Видео готово к просмотру':'Фото готово';
- const vid=p.querySelector('video');if(vid)vid.play().catch(()=>{});
+ const vid=p.querySelector('video');if(vid){vid.play().catch(()=>{});const audio=$('reviewMusicAudio');if(audio&&selectedMusicId)audio.play().catch(()=>{})}
  syncReviewAudio();
 }
 function readVideoDuration(f){return new Promise(resolve=>{const u=URL.createObjectURL(f),v=document.createElement('video');let done=false;const finish=d=>{if(done)return;done=true;URL.revokeObjectURL(u);v.removeAttribute('src');v.load();resolve(d)};v.preload='metadata';v.onloadedmetadata=()=>finish(Number.isFinite(v.duration)?v.duration:null);v.onerror=()=>finish(null);v.src=u;v.load();setTimeout(()=>finish(null),5000)})}

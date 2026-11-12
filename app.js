@@ -93,7 +93,8 @@ $('resetForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)ret
 $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;const {error}=await sb.auth.updateUser({password:$('newPassword').value});if(error)return authStatus(error.message,true);toast('Пароль обновлён');setAuth('login')});
 async function signOutOfPixy(){
  try{
-  if(inboxMessagesChannel&&sb){await sb.removeChannel(inboxMessagesChannel);inboxMessagesChannel=null}\n  if(activityRealtimeChannel&&sb){await sb.removeChannel(activityRealtimeChannel);activityRealtimeChannel=null}
+  if(inboxMessagesChannel&&sb){await sb.removeChannel(inboxMessagesChannel);inboxMessagesChannel=null}
+  if(activityRealtimeChannel&&sb){await sb.removeChannel(activityRealtimeChannel);activityRealtimeChannel=null}
   if(sb){const {error}=await sb.auth.signOut();if(error)throw error}
   user=null;profile=null;activeConversation=null;activeChatUser=null;document.body.classList.remove('chat-open','call-active');
   setAuth('login');toast('Ты вышел из аккаунта PIXY.');
@@ -177,7 +178,8 @@ async function loadNotifications(){
  const icons={message:'✉',follow:'＋',comment:'▤',like:'♥'};
  const colors={message:'message',follow:'follow',comment:'comment',like:'like'};
  box.innerHTML=items.length?items.slice(0,60).map(x=>'<article class="notification-item"><span class="notification-icon '+colors[x.type]+'">'+icons[x.type]+'</span><div class="notification-copy"><b>@'+safe(x.name)+'</b><p>'+safe(x.text)+'</p><small>'+new Date(x.date).toLocaleString()+'</small></div><span class="notification-arrow">›</span></article>').join(''):'<div class="notification-empty"><span>✦</span><b>Пока тихо — и это нормально</b><p>Новые сообщения, подписки, комментарии и реакции появятся здесь.</p></div>';
- let seen=0;try{seen=Number(localStorage.getItem(activitySeenKey()))||Date.now()}catch(_){seen=Date.now()}\n setActivityBadge(items.filter(x=>new Date(x.date||0).getTime()>seen).length);
+ let seen=0;try{seen=Number(localStorage.getItem(activitySeenKey()))||Date.now()}catch(_){seen=Date.now()}
+ setActivityBadge(items.filter(x=>new Date(x.date||0).getTime()>seen).length);
 }
 async function loadProfile(){
  if(!sb||!user)return;
@@ -458,7 +460,8 @@ async function loadChatList(){
   if(countError)console.warn('PIXY unread count:',countError.message);
   return [row.conversation_id,countError?0:(count||0)];
  })));
- setChatBadge([...unreadCounts.values()].reduce((a,b)=>a+b,0));\n if(!inboxMessagesChannel){
+ setChatBadge([...unreadCounts.values()].reduce((a,b)=>a+b,0));
+ if(!inboxMessagesChannel){
   inboxMessagesChannel=sb.channel('pixy-inbox-'+user.id)
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},async payload=>{
     const message=payload.new;

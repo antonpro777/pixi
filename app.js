@@ -1,7 +1,7 @@
 (() => {
 const cfg=window.PIXY_CONFIG||{};const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes('YOUR_')&&!cfg.SUPABASE_ANON_KEY.includes('YOUR_'));
 const sb=ready&&window.supabase?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY):null;
-const $=id=>document.getElementById(id);let user=null,profile=null,pendingEmail='',authMode='login',verifyPurpose='signup',selectedFile=null,selectedFiles=[],availableMusic=[];
+const $=id=>document.getElementById(id);let user=null,profile=null,pendingEmail='',authMode='login',verifyPurpose='signup',selectedFile=null,selectedFiles=[],availableMusic=[],explicitSignOutRequested=false;
 function revealStartupFallback(message){
  const splash=$('splash'),app=$('app'),auth=$('auth');
  if(splash)splash.style.display='none';
@@ -102,6 +102,7 @@ $('resendCode').onclick=async()=>{if(!sb||!pendingEmail)return;const result=veri
 $('resetForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;pendingEmail=$('resetEmail').value.trim();verifyPurpose='recovery';const {error}=await sb.auth.resetPasswordForEmail(pendingEmail);if(error)return authStatus(error.message,true);setAuth('verify');authStatus('Код восстановления отправлен на '+pendingEmail)});
 $('newPasswordForm').addEventListener('submit',async e=>{e.preventDefault();if(!sb)return;const {error}=await sb.auth.updateUser({password:$('newPassword').value});if(error)return authStatus(error.message,true);toast('Пароль обновлён');setAuth('login')});
 async function signOutOfPixy(){
+ explicitSignOutRequested=true;
  try{
   if(inboxMessagesChannel&&sb){await sb.removeChannel(inboxMessagesChannel);inboxMessagesChannel=null}
   if(activityRealtimeChannel&&sb){await sb.removeChannel(activityRealtimeChannel);activityRealtimeChannel=null}
@@ -109,6 +110,7 @@ async function signOutOfPixy(){
   user=null;profile=null;activeConversation=null;activeChatUser=null;pixyPinUnlocked=false;$('pixyPinLockOverlay')?.classList.add('hidden');document.body.classList.remove('chat-open','call-active');
   setAuth('login');toast('Ты вышел из аккаунта PIXY.');
  }catch(error){console.error('PIXY sign out:',error);toast('Не удалось выйти: '+(error?.message||'ошибка'))}
+ finally{explicitSignOutRequested=false}
 }
 $('signOut').onclick=signOutOfPixy;
 $('signOutProfile')?.addEventListener('click',signOutOfPixy);
@@ -1532,22 +1534,38 @@ async function loadWallet(){
 let neftPriceRefreshTimer=null;
 function startNeftPriceRefresh(){if(neftPriceRefreshTimer)return;neftPriceRefreshTimer=setInterval(()=>{if(!user||document.hidden)return;if(!$('view-shop').classList.contains('hidden'))loadShop();if(!$('view-my-gifts').classList.contains('hidden'))loadMyGifts()},60000)}
 async function loadShop(){
- if(!sb)return;
- const [{data:bg,error:be},{data:gs,error:ge}]=await Promise.all([
-  sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),
-  sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order,kind,rarity,design_number,background_key,price_growth_per_hour,price_started_at,supply_limit').eq('available',true).order('sort_order')
- ]);
- if(be)toast(be.message);if(ge)toast(ge.message);
- $('backgroundShop').innerHTML=(bg||[]).map(x=>{const c=bgColors[x.id]||['#343047','#a78bfa'];return '<button class="shop-tile" data-background="'+safe(x.id)+'"><div class="swatch" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')"></div><small>'+safe(x.title)+'</small><b>'+(x.price_xion===0?'Бесплатно':x.price_xion+' XION')+'</b></button>'}).join('');
- const classic=(gs||[]).filter(g=>g.kind!=='neft');
- const neft=(gs||[]).filter(g=>g.kind==='neft').sort((a,b)=>(a.design_number||0)-(b.design_number||0));
- const classicHtml=classic.map(g=>'<button type="button" class="gift-tile gift-tile-custom" data-buy-gift="'+safe(g.id)+'">'+giftArtMarkup(g.id)+'<b>'+safe(g.title)+'</b><small>'+g.price_xion+' XION · Купить</small></button>').join('');
- const neftHtml=neft.map(g=>{
-  const growth=Number(g.price_growth_per_hour||0),hours=Math.floor(Math.max(0,Date.now()-new Date(g.price_started_at).getTime())/3600000),price=g.price_xion+hours*growth,number=Number(g.design_number||0),limited=g.supply_limit===1;
-  return '<button type="button" class="gift-tile neft-tile '+(limited?'neft-one-of-one':'')+'" data-buy-gift="'+safe(g.id)+'" data-neft-number="'+number+'" style="'+neftCardStyle(number)+'">'+giftArtMarkup(g.id)+'<span class="neft-edition">'+(limited?'ONE OF ONE · #0001':'NEFT · #'+String(number).padStart(2,'0'))+'</span><b>'+safe(g.title)+'</b><small class="neft-price">'+price.toLocaleString('ru-RU')+' XION</small><small class="neft-growth">'+(growth?'+'+growth+' XION / час · '+safe(g.rarity):'Единственный экземпляр · цена фиксирована')+'</small></button>';
- }).join('');
- $('giftShop').innerHTML='<div class="gift-shop-section"><div class="gift-shop-section-head"><b>Классические подарки</b><small>Обновлённые цены</small></div><div class="gift-grid-inner">'+classicHtml+'</div></div><div class="gift-shop-section neft-shop-section"><div class="gift-shop-section-head"><b>NEFT · цифровая коллекция</b><small>50 уникальных дизайнов · стоимость растёт каждый час</small></div><div class="gift-grid-inner neft-grid-inner">'+neftHtml+'</div></div>';
-
+ if(!sb||!user)return;
+ const ownerId=user.id;
+ try{
+  // Restore a missing access session before querying the store. A failed
+  // refresh is reported in the store instead of redirecting to registration.
+  const current=await sb.auth.getSession();
+  if(current.error)throw current.error;
+  if(!current.data?.session){
+   const refreshed=await sb.auth.refreshSession();
+   if(refreshed.error)throw refreshed.error;
+   if(!refreshed.data?.session)throw new Error('Сессия не восстановлена. Обнови страницу и войди снова.');
+  }
+  const [{data:bg,error:be},{data:gs,error:ge}]=await Promise.all([
+   sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),
+   sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order,kind,rarity,design_number,background_key,price_growth_per_hour,price_started_at,supply_limit').eq('available',true).order('sort_order')
+  ]);
+  if(user?.id!==ownerId)return;
+  if(be)throw be;
+  if(ge)throw ge;
+  $('backgroundShop').innerHTML=(bg||[]).map(x=>{const c=bgColors[x.id]||['#343047','#a78bfa'];return '<button class="shop-tile" data-background="'+safe(x.id)+'"><div class="swatch" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')"></div><small>'+safe(x.title)+'</small><b>'+(x.price_xion===0?'Бесплатно':x.price_xion+' XION')+'</b></button>'}).join('');
+  const classic=(gs||[]).filter(g=>g.kind!=='neft');
+  const neft=(gs||[]).filter(g=>g.kind==='neft').sort((a,b)=>(a.design_number||0)-(b.design_number||0));
+  const classicHtml=classic.map(g=>'<button type="button" class="gift-tile gift-tile-custom" data-buy-gift="'+safe(g.id)+'">'+giftArtMarkup(g.id)+'<b>'+safe(g.title)+'</b><small>'+g.price_xion+' XION · Купить</small></button>').join('');
+  const neftHtml=neft.map(g=>{
+   const growth=Number(g.price_growth_per_hour||0),hours=Math.floor(Math.max(0,Date.now()-new Date(g.price_started_at).getTime())/3600000),price=g.price_xion+hours*growth,number=Number(g.design_number||0),limited=g.supply_limit===1;
+   return '<button type="button" class="gift-tile neft-tile '+(limited?'neft-one-of-one':'')+'" data-buy-gift="'+safe(g.id)+'" data-neft-number="'+number+'" style="'+neftCardStyle(number)+'">'+giftArtMarkup(g.id)+'<span class="neft-edition">'+(limited?'ONE OF ONE · #0001':'NEFT · #'+String(number).padStart(2,'0'))+'</span><b>'+safe(g.title)+'</b><small class="neft-price">'+price.toLocaleString('ru-RU')+' XION</small><small class="neft-growth">'+(growth?'+'+growth+' XION / час · '+safe(g.rarity):'Единственный экземпляр · цена фиксирована')+'</small></button>';
+  }).join('');
+  $('giftShop').innerHTML='<div class="gift-shop-section"><div class="gift-shop-section-head"><b>Классические подарки</b><small>Обновлённые цены</small></div><div class="gift-grid-inner">'+classicHtml+'</div></div><div class="gift-shop-section neft-shop-section"><div class="gift-shop-section-head"><b>NEFT · цифровая коллекция</b><small>50 уникальных дизайнов · стоимость растёт каждый час</small></div><div class="gift-grid-inner neft-grid-inner">'+neftHtml+'</div></div>';
+ }catch(error){
+  console.error('PIXY shop load:',error);
+  if(user?.id===ownerId)toast('Не удалось загрузить магазин: '+(error?.message||'ошибка соединения'));
+ }
 }
 $('buyGiftForSelf')?.addEventListener('change',e=>{$('giftRecipient').disabled=e.target.checked;$('giftRecipient').placeholder=e.target.checked?'Подарок будет куплен для твоего профиля':'Username получателя (например, alex.pixy)'});
 $('giftShop').addEventListener('click',async e=>{
@@ -1624,9 +1642,14 @@ if(sb){
    }
    return;
   }
-  // Ignore unrelated null-session events. Only an actual SIGNED_OUT event
-  // should switch the interface to the login screen.
+  // A background refresh failure or another tab must not eject the user
+  // while navigating inside PIXY. Only the explicit in-app logout action
+  // is allowed to replace the app with the login screen.
   if(event==='SIGNED_OUT'){
+   if(!explicitSignOutRequested){
+    console.warn('PIXY ignored unexpected SIGNED_OUT event; keeping the current view mounted');
+    return;
+   }
    user=null;profile=null;pixyPinUnlocked=false;
    $('pixyPinLockOverlay')?.classList.add('hidden');
    setAuth('login');

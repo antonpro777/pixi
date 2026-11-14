@@ -808,7 +808,7 @@ async function openPublicProfile(id){
  const bgKey=String(p.profile_background||'aurora').toLowerCase(),bg=bgColors[bgKey]||bgColors.aurora;
  const postHtml=(posts||[]).map(x=>'<article class="public-profile-post">'+(x.media_type==='video'?'<video controls playsinline preload="metadata" src="'+safe(x.media_url)+'" style="filter:'+mediaFilterCss(x.media_filter)+'"></video>':'<img src="'+safe(x.media_url)+'" alt="Публикация">')+(x.caption?'<p>'+safe(x.caption)+'</p>':'')+'</article>').join('')||'<div class="empty-hint">Пока нет публикаций.</div>';
  const giftHtml=(gifts||[]).map(g=>'<div class="public-profile-gift">'+giftArtMarkup(g.gift_id)+(g.serial_number?'<small>#'+safe(g.serial_number)+'</small>':'')+'<b>'+safe(g.title)+'</b></div>').join('')||'<div class="empty-hint">Подарков пока нет.</div>';
- $('publicProfileContent').innerHTML='<div class="public-profile-cover" style="background:linear-gradient(135deg,'+bg[0]+','+bg[1]+')"><span>PIXY PROFILE</span></div><div class="public-profile-body"><header class="public-profile-head">'+avatarMarkup(p,'public-profile-avatar')+'<div><h2>'+safe(p.display_name||p.username)+'</h2><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></div>'+(user?'<button type="button" class="follow-action '+(rel?'following':'')+'" data-follow-toggle="'+p.id+'" data-following="'+(rel?'1':'0')+'">'+(rel?'Вы подписаны':'Подписаться')+'</button>':'')+'</header>'+(user?'<div class="public-profile-actions"><button type="button" class="primary-btn" data-start-chat="'+p.id+'" data-chat-name="'+safe(p.username)+'">✉ Написать</button><button type="button" class="chat-call-btn" data-start-call="'+p.id+'" data-chat-name="'+safe(p.username)+'">☎ Позвонить</button></div>':'')+'<p class="public-profile-bio">'+safe(p.bio||'')+'</p><div class="profile-stats public-profile-stats"><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="followers"><b>'+(followers||0)+'</b><span>подписчиков</span></button><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="following"><b>'+(following||0)+'</b><span>подписок</span></button></div><section class="public-profile-section"><h3>Публикации</h3><div class="public-profile-posts">'+postHtml+'</div></section><section class="public-profile-section"><h3>Коллекция подарков</h3><div class="public-profile-gifts">'+giftHtml+'</div></section></div>';
+ $('publicProfileContent').innerHTML='<div class="public-profile-cover" style="background:linear-gradient(135deg,'+bg[0]+','+bg[1]+')"><span>PIXY PROFILE</span></div><div class="public-profile-body"><header class="public-profile-head">'+avatarMarkup(p,'public-profile-avatar')+'<div><h2>'+safe(p.display_name||p.username)+'</h2><small>@'+safe(p.username)+(p.is_verified?' ✓':'')+'</small></div>'+(user?'<button type="button" class="follow-action '+(rel?'following':'')+'" data-follow-toggle="'+p.id+'" data-following="'+(rel?'1':'0')+'">'+(rel?'Вы подписаны':'Подписаться')+'</button>':'')+'</header>'+(user?'<div class="public-profile-actions"><button type="button" class="primary-btn" data-start-chat="'+p.id+'" data-chat-name="'+safe(p.username)+'">✉ Написать</button><button type="button" class="chat-call-btn public-profile-call-icon" data-start-call="'+p.id+'" data-chat-name="'+safe(p.username)+'" aria-label="Позвонить" title="Позвонить"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7.2 3.8 9.6 7.5 8 9.4a14.2 14.2 0 0 0 6.6 6.6l1.9-1.6 3.7 2.4-.6 3.2c-.1.7-.8 1.2-1.5 1.2C9.4 21.2 2.8 14.6 2.8 5.9c0-.7.5-1.4 1.2-1.5l3.2-.6Z"/></svg></button></div>':'')+'<p class="public-profile-bio">'+safe(p.bio||'')+'</p><div class="profile-stats public-profile-stats"><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="followers"><b>'+(followers||0)+'</b><span>подписчиков</span></button><button type="button" data-open-follow-list="'+p.id+'" data-list-kind="following"><b>'+(following||0)+'</b><span>подписок</span></button></div><section class="public-profile-section"><h3>Публикации</h3><div class="public-profile-posts">'+postHtml+'</div></section><section class="public-profile-section"><h3>Коллекция подарков</h3><div class="public-profile-gifts">'+giftHtml+'</div></section></div>';
 }
 async function openFollowList(profileId,kind){
  if(!profileId)return;$('followListModal').classList.remove('hidden');$('followListTitle').textContent=kind==='followers'?'Подписчики':'Подписки';$('followListContent').innerHTML='<div class="profile-view-loading">Загружаем список…</div>';
@@ -1598,7 +1598,41 @@ $('moderationResults').addEventListener('click',async e=>{
  toast(action==='ban'?'Аккаунт заблокирован':action==='restrict'?'Ограничение применено':action==='unban'?'Ограничения сняты':'Сообщение отправлено');
 });
 
-if(sb){sb.auth.getSession().then(async({data})=>{if(data.session){user=data.session.user;await loadProfile();showApp()}else setAuth('login')});sb.auth.onAuthStateChange(async(event,session)=>{if(event==='PASSWORD_RECOVERY'){setAuth('newPassword')}else if(session&&!user){user=session.user;await loadProfile();showApp()}else if(!session){user=null;profile=null;pixyPinUnlocked=false;$('pixyPinLockOverlay')?.classList.add('hidden');setAuth('login')}})}else{setAuth('login');authStatus('Дизайн готов. Для настоящей регистрации подключи Supabase — ключи не добавляются в публичный код.',true)}
+if(sb){
+ // Bootstrap the current session once. Auth callbacks must stay synchronous:
+ // awaiting a Supabase query inside onAuthStateChange can deadlock the auth lock.
+ sb.auth.getSession().then(async({data,error})=>{
+  if(error)throw error;
+  if(data?.session){user=data.session.user;await loadProfile();showApp()}
+  else if(!user)setAuth('login');
+ }).catch(error=>{
+  console.error('PIXY session bootstrap:',error);
+  if(!user){setAuth('login');authStatus('Не удалось восстановить сессию. Попробуй войти ещё раз.',true)}
+ });
+ sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='INITIAL_SESSION')return;
+  if(event==='PASSWORD_RECOVERY'){setTimeout(()=>setAuth('newPassword'),0);return}
+  if(session){
+   if(!user||user.id!==session.user.id){
+    const nextUser=session.user;user=nextUser;
+    // Run profile queries after the auth callback releases Supabase's lock.
+    setTimeout(async()=>{
+     if(user?.id!==nextUser.id)return;
+     await loadProfile();
+     if(user?.id===nextUser.id)showApp();
+    },0);
+   }
+   return;
+  }
+  // Ignore unrelated null-session events. Only an actual SIGNED_OUT event
+  // should switch the interface to the login screen.
+  if(event==='SIGNED_OUT'){
+   user=null;profile=null;pixyPinUnlocked=false;
+   $('pixyPinLockOverlay')?.classList.add('hidden');
+   setAuth('login');
+  }
+ });
+}else{setAuth('login');authStatus('Дизайн готов. Для настоящей регистрации подключи Supabase — ключи не добавляются в публичный код.',true)}
 setTimeout(()=>{
  $('splash').style.display='none';
  if($('app').classList.contains('hidden')&&$('auth').classList.contains('hidden')){

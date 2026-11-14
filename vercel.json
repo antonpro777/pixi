@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/pixy-release-announcement",
-      "schedule": "5 17 14 11 *"
-    }
-  ]
-}

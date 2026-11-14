@@ -853,3 +853,114 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
  .profile-primary-actions{gap:7px}
 }
 @media(prefers-reduced-motion:reduce){.music-promo-banner:before,.music-promo-disc,.music-promo-art>i,.pixy-music-stage:before,.pixy-music-orb,.pixy-player-cover,.pixy-player-cover:before,.pixy-player-cover-disc{animation:none!important}}
+
+
+/* PIXY settings and light appearance */
+.settings-shell{max-width:880px;margin:0 auto 70px}
+.settings-tabs{display:flex;gap:7px;flex-wrap:wrap;padding:7px;margin:18px 0 20px;background:var(--panel);border:1px solid var(--line);border-radius:15px}
+.settings-tab{padding:11px 15px;border-radius:10px;background:transparent;color:var(--muted);font-size:12px;font-weight:750;transition:.2s}
+.settings-tab.active{background:linear-gradient(120deg,#8b69e8,#b276d2);color:#fff;box-shadow:0 5px 18px #9870e833}
+.settings-panel{display:grid;gap:15px}
+.settings-card{padding:23px;border:1px solid var(--line);border-radius:18px;background:var(--panel);box-shadow:0 12px 35px #00000012}
+.settings-card h3{margin:7px 0;font:800 19px Manrope}
+.settings-card p{margin:0 0 17px;color:var(--muted);font-size:12px;line-height:1.65;max-width:650px}
+.settings-kicker{font-size:9px;letter-spacing:2px;font-weight:900;color:var(--purple)}
+.settings-form{display:grid;gap:10px;max-width:470px}
+.settings-form input,.settings-select{width:100%;min-height:44px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text)}
+.settings-actions{display:flex;gap:9px;flex-wrap:wrap}
+.secondary-btn{padding:11px 15px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text);font-weight:700}
+.settings-hint{display:block;margin-top:10px;color:var(--muted);font-size:11px}
+.theme-choice-row{display:flex;gap:12px;flex-wrap:wrap}
+.theme-choice{width:145px;padding:9px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);display:grid;gap:8px;text-align:left}
+.theme-choice.active{border-color:var(--purple);box-shadow:0 0 0 2px color-mix(in srgb,var(--purple) 22%,transparent)}
+.theme-choice b{font-size:12px}
+.theme-preview{height:76px;border-radius:9px;display:block;border:1px solid #ffffff18}
+.dark-preview{background:linear-gradient(145deg,#0c0b13 0 45%,#29223e 45% 100%)}
+.light-preview{background:linear-gradient(145deg,#f7f8fc 0 45%,#dfe6f4 45% 100%)}
+.settings-switch{display:flex;align-items:center;gap:12px;cursor:pointer}
+.settings-switch input{position:absolute;opacity:0;pointer-events:none}
+.switch-track{width:44px;height:25px;border-radius:20px;background:#777;position:relative;transition:.2s;flex:none}
+.switch-track:after{content:"";position:absolute;width:19px;height:19px;top:3px;left:3px;border-radius:50%;background:#fff;transition:.2s}
+.settings-switch input:checked+.switch-track{background:linear-gradient(120deg,#8b69e8,#b276d2)}
+.settings-switch input:checked+.switch-track:after{transform:translateX(19px)}
+.settings-switch b,.settings-switch small{display:block}
+.settings-switch b{font-size:12px}
+.settings-switch small{font-size:10px;color:var(--muted);margin-top:3px}
+.pin-lock-overlay{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:#080711ed;backdrop-filter:blur(22px)}
+.pin-lock-card{width:min(390px,100%);padding:32px;border:1px solid #ffffff22;border-radius:23px;background:linear-gradient(145deg,#201a32,#11101a);color:#fff;text-align:center;box-shadow:0 28px 90px #0009}
+.pin-lock-symbol{width:65px;height:65px;margin:18px auto;border-radius:20px;display:grid;place-items:center;background:linear-gradient(145deg,#a783ff,#db7fc5);font-size:30px}
+.pin-lock-card h2{font:800 24px Manrope;margin:0 0 8px}
+.pin-lock-card p{font-size:12px;color:#bcb4cf;line-height:1.6}
+.pin-lock-card form{display:grid;gap:12px;margin-top:20px}
+.pin-lock-card input{height:52px;text-align:center;letter-spacing:12px;font-size:22px;border:1px solid #ffffff2a;border-radius:13px;background:#ffffff12;color:#fff}
+#pixyPinUnlockError{color:#ff9ab7;min-height:16px;font-size:11px}
+.gift-art{width:78px;height:78px;display:grid;place-items:center;position:relative;border-radius:22px;background:radial-gradient(circle at 30% 20%,#ffffff55,transparent 42%),linear-gradient(145deg,#29223d,#171421);border:1px solid #ffffff1e;box-shadow:inset 0 1px 0 #ffffff22,0 9px 25px #0003;overflow:hidden;flex:none}
+.gift-art:before{content:"";position:absolute;inset:-35%;background:conic-gradient(transparent,#ffffff22,transparent 45%);animation:giftShine 7s linear infinite}
+.gift-art svg{position:relative;width:70%;height:70%;filter:drop-shadow(0 5px 7px #0006)}
+.gift-art-moon{background:linear-gradient(145deg,#1d2b50,#574277)}
+.gift-art-heart{background:linear-gradient(145deg,#582e53,#a64e83)}
+.gift-art-planet{background:linear-gradient(145deg,#1e3d56,#7554a8)}
+.gift-art-teddy{background:linear-gradient(145deg,#62452e,#b77a5b)}
+.gift-art-bloom{background:linear-gradient(145deg,#4b315f,#a65d91)}
+.gift-art-music{background:linear-gradient(145deg,#2c3565,#7654b0)}
+.gift-art-butterfly{background:linear-gradient(145deg,#244b5b,#7a65bc)}
+.gift-art-crystal{background:linear-gradient(145deg,#234e65,#69a4d0)}
+.gift-art-cat{background:linear-gradient(145deg,#42415b,#a47da9)}
+.gift-art-ribbon{background:linear-gradient(145deg,#60354e,#b86b9b)}
+.gift-art-rocket{background:linear-gradient(145deg,#263e65,#7258a7)}
+.gift-art-crown{background:linear-gradient(145deg,#55411f,#b58c49)}
+.gift-art-unicorn{background:linear-gradient(145deg,#51375f,#a16fba)}
+.gift-art-trophy{background:linear-gradient(145deg,#574521,#c09245)}
+.gift-art-stardust{background:linear-gradient(145deg,#263b6c,#9865b7)}
+@keyframes giftShine{to{transform:rotate(360deg)}}
+.gift-tile-custom{display:grid;justify-items:center;gap:8px;padding:15px 10px;min-height:175px}
+.gift-tile-custom .gift-art{width:86px;height:86px}
+.gift-tile-custom b{font-size:12px}
+.gift-tile-custom small{font-size:10px;color:var(--muted)}
+.my-gift-grid{display:grid;gap:11px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.my-gift-card{display:flex;align-items:center;gap:13px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel)}
+.my-gift-card .gift-art{width:65px;height:65px;border-radius:18px}
+.my-gift-card>div{display:grid;gap:4px;flex:1;min-width:0}
+.my-gift-card>div>b{font-size:13px}
+.my-gift-card small{font-size:10px;color:var(--muted)}
+.my-gift-card small strong{color:var(--mint)}
+.my-gift-card .primary-btn{padding:9px 11px;font-size:10px;white-space:nowrap}
+.gift-value-note{margin:0 0 17px;padding:13px 15px;border:1px solid var(--line);border-radius:13px;background:var(--panel);color:var(--muted);font-size:11px;line-height:1.6}
+.received-gift-item{display:flex;align-items:center;gap:10px}
+.received-gift-item .gift-art{width:43px;height:43px;border-radius:12px}
+.gift-chat-message{display:flex;align-items:center;gap:11px;min-width:220px;padding:10px;border:1px solid #ffffff24;border-radius:13px;background:linear-gradient(120deg,#8d69e52b,#d477bb20)}
+.gift-chat-message .gift-art{width:47px;height:47px;border-radius:13px}
+.gift-chat-message>div{display:grid;gap:4px}
+.gift-chat-message b{font-size:11px}
+.gift-chat-message span{font-size:10px;line-height:1.4}
+.reaction-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:11px}
+.reaction-row button{min-width:48px;height:36px;padding:0 9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);transition:transform .18s,background .18s,border-color .18s}
+.reaction-row button span{font-size:16px}
+.reaction-row button small{font-size:10px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.reaction-row button.is-reacted{border-color:#ad8cff;background:#a17ae72b;box-shadow:0 0 0 2px #a17ae722}
+.reaction-row button.is-reacted small{color:var(--text)}
+.reaction-row button.reaction-pop,.reaction-row button.is-reacted{animation:reactionPop .35s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes reactionPop{0%{transform:scale(.82)}55%{transform:scale(1.17)}100%{transform:scale(1)}}
+.theme-light{--bg:#f2f4fa;--panel:#ffffff;--panel2:#edf0f7;--line:rgba(31,43,67,.12);--muted:#68748a;--text:#202a3d;--purple:#7659d8;--pink:#d36aa9;--mint:#238d72;background:#f2f4fa;color:#202a3d}
+.theme-light .sidebar{border-color:var(--line)}
+.theme-light .brand{color:#252c40}
+.theme-light .topbar{background:#f2f4faeF}
+.theme-light .nav-item{color:#647087}
+.theme-light .nav-item.active,.theme-light .nav-item:hover{background:#e8e4f8;color:#5b45b6}
+.theme-light .side-label,.theme-light .eyebrow,.theme-light .modal-kicker{color:#78839a}
+.theme-light .post-card,.theme-light .right-card,.theme-light .card,.theme-light .chat-sidebar,.theme-light .chat-panel,.theme-light .profile-more-menu,.theme-light .settings-card,.theme-light .settings-tabs,.theme-light .notification-item,.theme-light .search-person,.theme-light .shop-tile,.theme-light .gift-tile{background:#fff;color:#202a3d;border-color:var(--line);box-shadow:0 9px 28px #2434520d}
+.theme-light input,.theme-light textarea,.theme-light select{background:#fff;color:#202a3d;border-color:#dce1ec}
+.theme-light .profile-more-header{background:#f4f2fa;border-color:var(--line);color:#202a3d}
+.theme-light .profile-menu-item{color:#27334a}
+.theme-light .profile-menu-item:hover{background:#f1eff9}
+.theme-light .post-caption,.theme-light .message-text,.theme-light .notification-copy p{color:#344056}
+.theme-light .post-actions button,.theme-light .reaction-row button{color:#344056;background:#f2f4fa}
+.theme-light .reaction-row button.is-reacted{background:#e9e2ff;border-color:#a18be7;color:#503c9b}
+.theme-light .chat-conversation-head,.theme-light .chat-input-wrap{background:#f8f9fc;border-color:var(--line);color:#202a3d}
+.theme-light .message-bubble{background:#fff;color:#202a3d;border:1px solid var(--line)}
+.theme-light .message-bubble.own{background:#eee8ff;color:#2d2642}
+.theme-light .settings-card p,.theme-light .settings-card small{color:#68748a}
+.theme-light .secondary-btn{background:#edf0f7;color:#27334a}
+.theme-light .music-promo-banner,.theme-light .welcome-banner{color:#fff}
+.theme-light .gift-value-note{background:#fff;color:#68748a}
+@media(max-width:700px){.settings-tabs{display:grid;grid-template-columns:1fr}.settings-tab{text-align:left}.settings-card{padding:17px}.my-gift-card{flex-wrap:wrap}.my-gift-card .primary-btn{margin-left:auto}.theme-choice{flex:1;min-width:120px}}

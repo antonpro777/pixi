@@ -1058,3 +1058,31 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
 .call-controls .call-accept{background:linear-gradient(145deg,#35b77e,#18764f)}
 .call-controls .call-decline{background:linear-gradient(145deg,#df5874,#a62c4d)}
 @media(max-width:640px){.gift-grid-inner{grid-template-columns:repeat(2,minmax(0,1fr))}.neft-grid-inner{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Public profile layout and navigation fixes */
+#publicProfileModal{padding:0;z-index:120}
+#publicProfileModal .public-profile-card{position:relative;width:min(1100px,100vw);height:100dvh;max-height:100dvh;overflow-y:auto;overflow-x:hidden;padding:0;border:0;border-radius:0;overscroll-behavior:contain}
+#publicProfileModal .public-profile-back{position:fixed;top:14px;left:14px;right:auto;z-index:50;display:inline-flex;align-items:center;gap:7px;min-height:42px;padding:0 14px;border:1px solid #ffffff35;border-radius:12px;background:#171321eF;color:#fff;font-size:13px;font-weight:800;box-shadow:0 8px 28px #0006;backdrop-filter:blur(14px)}
+#publicProfileModal .public-profile-back:hover{background:#302342}
+#publicProfileModal .public-profile-cover{height:220px;min-height:160px;position:relative;z-index:0}
+#publicProfileModal .public-profile-body{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:0 28px 44px}
+#publicProfileModal .public-profile-head{display:grid;grid-template-columns:86px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:15px;row-gap:10px;margin:-40px 0 18px;padding:0;position:relative;z-index:2}
+#publicProfileModal .public-profile-head>.public-profile-avatar{grid-column:1;grid-row:1 / span 2;width:86px;height:86px;min-width:86px;aspect-ratio:1/1;flex:none;display:block;overflow:hidden;border:5px solid #100e18;border-radius:23px;background-size:cover;background-position:center;background-repeat:no-repeat;object-fit:cover}
+#publicProfileModal .public-profile-head>div{grid-column:2;grid-row:1;min-width:0;flex:none;padding:39px 0 0}
+#publicProfileModal .public-profile-head>div h2{overflow-wrap:anywhere}
+#publicProfileModal .public-profile-head>.follow-action{grid-column:2;grid-row:2;justify-self:start;align-self:start;margin:0;min-height:40px;padding:0 18px;border-radius:12px;white-space:nowrap;position:relative;z-index:3}
+#publicProfileModal .public-profile-actions{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:9px;margin:0 0 18px}
+#publicProfileModal .public-profile-bio{overflow-wrap:anywhere}
+#publicProfileModal .public-profile-posts{position:relative;z-index:0}
+@media(max-width:640px){
+ #publicProfileModal .public-profile-cover{height:170px}
+ #publicProfileModal .public-profile-body{padding:0 15px 34px}
+ #publicProfileModal .public-profile-head{grid-template-columns:72px minmax(0,1fr);column-gap:11px;row-gap:9px;margin-top:-34px}
+ #publicProfileModal .public-profile-head>.public-profile-avatar{width:72px;height:72px;min-width:72px;border-radius:19px}
+ #publicProfileModal .public-profile-head>div{padding-top:34px}
+ #publicProfileModal .public-profile-head>div h2{font-size:17px}
+ #publicProfileModal .public-profile-head>.follow-action{min-height:38px;padding:0 14px;font-size:11px}
+ #publicProfileModal .public-profile-back{top:10px;left:10px;min-height:39px;padding:0 12px}
+ #publicProfileModal .public-profile-posts{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+}

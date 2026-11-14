@@ -539,7 +539,7 @@ function pushKeyBytes(value){
 }
 async function getPixyServiceWorker(){
  if(!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('Этот браузер не поддерживает Web Push.');
- const registration=await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+ const registration=await navigator.serviceWorker.register('/sw.js?v=20261115-1',{scope:'/'});
  return await navigator.serviceWorker.ready;
 }
 async function savePushSubscription(subscription){

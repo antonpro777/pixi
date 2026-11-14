@@ -1043,3 +1043,18 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
 .call-brand-label{position:relative;font-size:9px;letter-spacing:3px;color:#bca7e9;margin-bottom:12px}
 .call-card h2,.call-card p,.call-timer{position:relative}
 @media(max-width:520px){.call-card{padding:24px 16px}.call-controls{gap:9px}.call-controls button{width:56px;height:56px;min-height:56px}}
+
+/* Store layout: separate classic and NEFT galleries */
+#giftShop{grid-template-columns:1fr}
+#giftShop>.gift-shop-section{grid-column:1/-1}
+.gift-shop-section .gift-grid-inner .gift-tile{min-width:0}
+.neft-tile .gift-art{display:grid;margin:0}
+.neft-tile .neft-edition{display:inline-block;margin:0}
+.neft-tile .neft-growth{display:block;margin:0}
+.neft-tile .neft-price{display:block;margin:0}
+.call-controls .call-utility.is-active{background:linear-gradient(145deg,#5d477e,#392d50);border-color:#c4a2ff88;box-shadow:0 0 0 4px #a88aff18}
+.call-controls .call-hangup{background:linear-gradient(145deg,#df4e70,#a9284b)}
+.call-controls .call-accept,.call-controls .call-decline{width:66px;height:66px;border-radius:20px;font-size:26px}
+.call-controls .call-accept{background:linear-gradient(145deg,#35b77e,#18764f)}
+.call-controls .call-decline{background:linear-gradient(145deg,#df5874,#a62c4d)}
+@media(max-width:640px){.gift-grid-inner{grid-template-columns:repeat(2,minmax(0,1fr))}.neft-grid-inner{grid-template-columns:repeat(2,minmax(0,1fr))}}

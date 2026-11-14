@@ -1649,11 +1649,9 @@ if(sb){
   }
  });
 }else{setAuth('login');authStatus('Дизайн готов. Для настоящей регистрации подключи Supabase — ключи не добавляются в публичный код.',true)}
-setTimeout(()=>{
- $('splash').style.display='none';
- if($('app').classList.contains('hidden')&&$('auth').classList.contains('hidden')){
-  setAuth('login');
-  authStatus('Загрузка заняла больше времени обычного. Можно войти ещё раз или обновить страницу.',true);
- }
-},6500);
+// The splash is only a loading indicator and must never change authentication state.
+ setTimeout(()=>{
+  const splash=$('splash');
+  if(splash)splash.style.display='none';
+ },6500);
 })();

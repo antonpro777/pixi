@@ -663,7 +663,7 @@ async function startVoiceCall(){
 async function acceptVoiceCall(){
  stopCallTone();try{await unlockCallAudio()}catch(_){}
  if(!callPendingOffer){$('callAcceptBtn').dataset.acceptRequested='1';$('callStatus').textContent='Ожидаем сигнал звонка…';return}
- try{$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');const pc=await createCallPeer();await pc.setRemoteDescription(new RTCSessionDescription(callPendingOffer));for(const c of callPendingIce.splice(0)){try{await pc.addIceCandidate(new RTCIceCandidate(c))}catch(err){console.warn(err)}}const answer=await pc.createAnswer();await pc.setLocalDescription(answer);await sendCallSignal('answer',{description:pc.localDescription});$('callStatus').textContent='Соединяем…'}
+ try{$('callAcceptBtn').classList.add('hidden');$('callDeclineBtn').classList.add('hidden');$('callHangupBtn').classList.remove('hidden');const pc=await createCallPeer();await pc.setRemoteDescription(new RTCSessionDescription(callPendingOffer));for(const c of callPendingIce.splice(0)){try{await pc.addIceCandidate(new RTCIceCandidate(c))}catch(err){console.warn(err)}}const answer=await pc.createAnswer();await pc.setLocalDescription(answer);await sendCallSignal('answer',{description:pc.localDescription});callDirection='connected';$('callCard').dataset.callDirection='connected';$('callStatus').textContent='Соединяем…'}
  catch(err){console.error('PIXY accept:',err);toast('Не удалось принять звонок: '+(err?.message||'ошибка'));await endVoiceCall(true)}
 }
 async function handleCallSignal(s,cid=callChannelConversation){
@@ -683,8 +683,8 @@ async function endVoiceCall(notify=true){
  $('callTimer').textContent='00:00';$('callMuteBtn').textContent='🎙';$('callSpeakerBtn').textContent='◖))';$('callAcceptBtn').dataset.acceptRequested='0';callUi(false,'');
 }
 $('chatCallBtn').onclick=startVoiceCall;$('callAcceptBtn').onclick=acceptVoiceCall;$('callDeclineBtn').onclick=()=>endVoiceCall(true);$('callHangupBtn').onclick=()=>endVoiceCall(true);
-$('callMuteBtn').onclick=()=>{callMuted=!callMuted;callLocalStream?.getAudioTracks().forEach(t=>t.enabled=!callMuted);$('callMuteBtn').textContent=callMuted?'🎙':'🎙'};
-$('callSpeakerBtn').onclick=()=>{callSpeakerOn=!callSpeakerOn;$('callRemoteAudio').muted=!callSpeakerOn;$('callSpeakerBtn').textContent=callSpeakerOn?'◖))':'◖×'};
+$('callMuteBtn').onclick=()=>{callMuted=!callMuted;callLocalStream?.getAudioTracks().forEach(t=>t.enabled=!callMuted);$('callMuteBtn').classList.toggle('is-active',callMuted);$('callMuteBtn').setAttribute('aria-label',callMuted?'Включить микрофон':'Выключить микрофон');$('callMuteBtn').title=callMuted?'Микрофон выключен':'Микрофон включён'};
+$('callSpeakerBtn').onclick=()=>{callSpeakerOn=!callSpeakerOn;$('callRemoteAudio').muted=!callSpeakerOn;$('callSpeakerBtn').classList.toggle('is-active',!callSpeakerOn);$('callSpeakerBtn').setAttribute('aria-label',callSpeakerOn?'Выключить громкую связь':'Включить громкую связь');$('callSpeakerBtn').title=callSpeakerOn?'Громкая связь включена':'Громкая связь выключена'};
 
 let inboxMessagesChannel=null;
 async function loadChatList(){
@@ -1541,8 +1541,8 @@ async function loadShop(){
  const neft=(gs||[]).filter(g=>g.kind==='neft').sort((a,b)=>(a.design_number||0)-(b.design_number||0));
  const classicHtml=classic.map(g=>'<button type="button" class="gift-tile gift-tile-custom" data-buy-gift="'+safe(g.id)+'">'+giftArtMarkup(g.id)+'<b>'+safe(g.title)+'</b><small>'+g.price_xion+' XION · Купить</small></button>').join('');
  const neftHtml=neft.map(g=>{
-  const hours=Math.floor(Math.max(0,Date.now()-new Date(g.price_started_at).getTime())/3600000),price=g.price_xion+hours*Number(g.price_growth_per_hour||30),number=Number(g.design_number||0),limited=g.supply_limit===1;
-  return '<button type="button" class="gift-tile neft-tile '+(g.rarity==='one_of_one'?'neft-one-of-one':'')+'" data-buy-gift="'+safe(g.id)+'" data-neft-number="'+number+'" style="'+neftCardStyle(number)+'">'+giftArtMarkup(g.id)+'<span class="neft-edition">'+(limited?'ONE OF ONE · #0001':'NEFT · #'+String(number).padStart(2,'0'))+'</span><b>'+safe(g.title)+'</b><small class="neft-price">'+price.toLocaleString('ru-RU')+' XION</small><small class="neft-growth">+30 XION / час · '+safe(g.rarity)+'</small></button>';
+  const growth=Number(g.price_growth_per_hour||0),hours=Math.floor(Math.max(0,Date.now()-new Date(g.price_started_at).getTime())/3600000),price=g.price_xion+hours*growth,number=Number(g.design_number||0),limited=g.supply_limit===1;
+  return '<button type="button" class="gift-tile neft-tile '+(limited?'neft-one-of-one':'')+'" data-buy-gift="'+safe(g.id)+'" data-neft-number="'+number+'" style="'+neftCardStyle(number)+'">'+giftArtMarkup(g.id)+'<span class="neft-edition">'+(limited?'ONE OF ONE · #0001':'NEFT · #'+String(number).padStart(2,'0'))+'</span><b>'+safe(g.title)+'</b><small class="neft-price">'+price.toLocaleString('ru-RU')+' XION</small><small class="neft-growth">'+(growth?'+'+growth+' XION / час · '+safe(g.rarity):'Единственный экземпляр · цена фиксирована')+'</small></button>';
  }).join('');
  $('giftShop').innerHTML='<div class="gift-shop-section"><div class="gift-shop-section-head"><b>Классические подарки</b><small>Обновлённые цены</small></div><div class="gift-grid-inner">'+classicHtml+'</div></div><div class="gift-shop-section neft-shop-section"><div class="gift-shop-section-head"><b>NEFT · цифровая коллекция</b><small>50 уникальных дизайнов · стоимость растёт каждый час</small></div><div class="gift-grid-inner neft-grid-inner">'+neftHtml+'</div></div>';
  $('buyGiftForSelf').checked=false;$('giftRecipient').disabled=false;$('giftRecipient').placeholder='Username получателя (например, alex.pixy)';

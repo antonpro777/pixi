@@ -255,9 +255,9 @@ const giftArtShapes={
 function giftArtMarkup(id){const shape=giftArtShapes[id]||giftArtShapes.stardust;return '<span class="gift-art gift-art-'+safe(id)+'"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0b5"/><stop offset=".45" stop-color="#f0a6ff"/><stop offset="1" stop-color="#7f9dff"/></linearGradient></defs><g fill="url(#gg)" stroke="#fff" stroke-opacity=".65" stroke-width="1.4" stroke-linejoin="round">'+shape+'</g></svg></span>'}
 function giftIdFromChatMessage(body){
  const text=String(body||'');
- const marked=text.match(/\\[gift:([a-z0-9_-]+)\\]/i);
+ const marked=text.match(/\[gift:([a-z0-9_-]+)\]/i);
  if(marked)return marked[1].toLowerCase();
- const legacy=text.match(/Подарок\\s+«([^»]+)»/i);
+ const legacy=text.match(/Подарок\s+«([^»]+)»/i);
  if(legacy){
   const id=legacy[1].trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');
   if(Object.prototype.hasOwnProperty.call(giftArtShapes,id))return id;

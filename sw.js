@@ -1,20 +1,22 @@
 self.addEventListener('push',event=>{
  event.waitUntil((async()=>{
-  const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-  if(clients.some(client=>client.visibilityState==='visible'))return;
   let data={};
   try{data=event.data?event.data.json():{}}catch(_){}
-  const inviteId=String(data.inviteId||'');
-  if(!inviteId)return;
-  await self.registration.showNotification(data.title||'Входящий звонок PIXY',{
-   body:data.body||'Тебе звонят. Нажми, чтобы открыть звонок.',
-   tag:'pixy-call-'+inviteId,
+  const isCall=!!data.inviteId;
+  const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  if(isCall&&clients.some(client=>client.visibilityState==='visible'))return;
+  if(!isCall&&data.type!=='announcement')return;
+  const title=data.title||(isCall?'Входящий звонок PIXY':'PIXY');
+  const options={
+   body:data.body||(isCall?'Тебе звонят. Нажми, чтобы открыть звонок.':'В PIXY есть обновление.'),
+   tag:isCall?'pixy-call-'+data.inviteId:'pixy-announcement-'+(data.tag||'update'),
    renotify:true,
-   requireInteraction:true,
+   requireInteraction:isCall,
    silent:false,
-   vibrate:[500,250,500,250,500,250,500,250,500,250,500,250,500,250,500,250,500,250,500],
-   data:{inviteId,url:data.url||('/?incomingCall='+encodeURIComponent(inviteId))}
-  });
+   data:{inviteId:data.inviteId||null,url:data.url||(isCall?('/?incomingCall='+encodeURIComponent(data.inviteId)):'/')}
+  };
+  if(isCall)options.vibrate=[500,250,500,250,500];
+  await self.registration.showNotification(title,options);
  })());
 });
 self.addEventListener('notificationclick',event=>{

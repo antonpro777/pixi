@@ -1,0 +1,1 @@
+alter table public.post_likes add constraint post_likes_user_profile_fkey foreign key(user_id) references public.profiles(id) on delete cascade;

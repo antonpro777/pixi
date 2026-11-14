@@ -1533,7 +1533,7 @@ async function loadShop(){
  if(!sb)return;
  const [{data:bg,error:be},{data:gs,error:ge}]=await Promise.all([
   sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),
-  sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order,kind,rarity,design_number,background_key,price_growth_per_hour,price_started_at').eq('available',true).order('sort_order')
+  sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order,kind,rarity,design_number,background_key,price_growth_per_hour,price_started_at,supply_limit').eq('available',true).order('sort_order')
  ]);
  if(be)toast(be.message);if(ge)toast(ge.message);
  $('backgroundShop').innerHTML=(bg||[]).map(x=>{const c=bgColors[x.id]||['#343047','#a78bfa'];return '<button class="shop-tile" data-background="'+safe(x.id)+'"><div class="swatch" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')"></div><small>'+safe(x.title)+'</small><b>'+(x.price_xion===0?'Бесплатно':x.price_xion+' XION')+'</b></button>'}).join('');

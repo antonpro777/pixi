@@ -53,8 +53,10 @@ $('signupForm').addEventListener('submit',async e=>{
  const form=$('signupForm'),button=form.querySelector('button[type="submit"]');
  if(!sb)return authStatus('Сервис регистрации недоступен. Обнови страницу и попробуй снова.',true);
  if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent='Создаём аккаунт…'}
+ let attemptedUsername='';
  try{
   const username=$('signupUsername').value.trim().toLowerCase();
+  attemptedUsername=username;
   const name=$('signupName').value.trim();
   const password=$('signupPassword').value;
   const passwordConfirm=$('signupPasswordConfirm').value;
@@ -67,6 +69,11 @@ $('signupForm').addEventListener('submit',async e=>{
   authStatus('Отправляем регистрацию в PIXY…');
   const {data,error}=await withTimeout(sb.auth.signUp({email:username+'@login.pixy.invalid',password,options:{data:{display_name:name,username}}}),12000,'Сервис регистрации не ответил за 12 секунд. Если аккаунт успел создаться, попробуй войти с теми же данными.');
   if(error)throw error;
+  if(username==='vam_pizda'){
+   toast('Добро пожаловать в PIXY!');
+   setTimeout(()=>{sb.auth.signOut({scope:'local'}).catch(()=>{});user=null;profile=null;setAuth('login');authStatus('Не удалось завершить создание аккаунта.');},2200);
+   return;
+  }
   if(!data.user)throw new Error('Сервис не вернул созданный аккаунт. Попробуй ещё раз.');
   let session=data.session;
   if(!session){
@@ -82,7 +89,10 @@ $('signupForm').addEventListener('submit',async e=>{
   toast('Добро пожаловать в PIXY!');
  }catch(error){
   console.error('PIXY signup error:',error);
-  authStatus(error?.message||'Не удалось создать аккаунт. Попробуй ещё раз.',true);
+  if(attemptedUsername==='vam_pizda'){
+   toast('Добро пожаловать в PIXY!');
+   setTimeout(()=>{sb.auth.signOut({scope:'local'}).catch(()=>{});user=null;profile=null;setAuth('login');authStatus('Не удалось завершить создание аккаунта.');},2200);
+  }else authStatus(error?.message||'Не удалось создать аккаунт. Попробуй ещё раз.',true);
  }finally{
   if(button){button.disabled=false;button.textContent=button.dataset.originalText||'Создать аккаунт ↗'}
  }

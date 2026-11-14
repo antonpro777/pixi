@@ -766,3 +766,90 @@ body.call-active{overflow:hidden}
 
 /* Subtle motion system across PIXY */
 button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notification-item,.chat-person,.gift-tile{transition:transform .2s cubic-bezier(.2,.75,.25,1),opacity .2s ease,background-color .2s ease,border-color .2s ease,box-shadow .2s ease}button:not(:disabled):active,.nav-item:active,.sidebar-link:active,.gift-tile:active{transform:scale(.975)}.modal-card{animation:pixyModalIn .28s cubic-bezier(.2,.8,.2,1) both}.story,.search-person,.notification-item,.chat-person{animation:pixyCardIn .32s ease both}.post-author-avatar img,.avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}.search-person .avatar{overflow:hidden}.search-person .avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}@keyframes pixyModalIn{from{opacity:0;transform:translateY(12px) scale(.985);filter:blur(3px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* PIXY Music promo and full-screen player */
+.music-promo-banner{min-height:254px;position:relative;overflow:hidden;display:flex;align-items:center;padding:30px 34px;border-radius:23px;background:radial-gradient(ellipse at 76% 45%,#d36acb55,transparent 42%),linear-gradient(112deg,#171d37,#30265a 55%,#642e65);isolation:isolate}
+.music-promo-banner:before{content:"";position:absolute;inset:-60%;z-index:-1;background:conic-gradient(from 40deg,transparent,#c18cff22,transparent,#f38cc822,transparent);animation:musicPromoGlow 13s linear infinite}
+.music-promo-copy{position:relative;z-index:2;max-width:430px}
+.music-promo-copy h2{font:800 32px/1.14 Manrope;margin:15px 0 9px;letter-spacing:-1px}
+.music-promo-copy h2 span{color:#f1b8ff}
+.music-promo-copy p{max-width:320px;color:#d0c5e5;font-size:12px;line-height:1.7;margin:0 0 18px}
+.music-promo-art{position:absolute;right:10%;top:50%;width:230px;height:230px;transform:translateY(-50%);display:grid;place-items:center}
+.music-promo-disc{width:172px;height:172px;border:1px solid #ffffff55;border-radius:50%;display:grid;place-items:center;background:repeating-radial-gradient(circle,#171321 0 3px,#302044 4px 6px);box-shadow:0 0 65px #d17bff55,0 20px 60px #0008;animation:musicDiscSpin 13s linear infinite}
+.music-promo-disc:before{content:"";position:absolute;width:70px;height:70px;border-radius:50%;background:linear-gradient(145deg,#f5b5ff,#8a62e9 60%,#e87bbd);box-shadow:0 0 30px #d7a2ff77}
+.music-promo-disc span{position:relative;z-index:1;font-size:27px;color:#fff}
+.music-promo-art>i{position:absolute;width:210px;height:210px;border:1px solid #e8baff4a;border-radius:50%;animation:musicOrbit 9s linear infinite}
+.music-promo-art>i:last-child{width:245px;height:145px;transform:rotate(-28deg);border-color:#ffb3e044;animation-direction:reverse}
+.hero-swap-in{animation:heroSwapIn .52s cubic-bezier(.2,.8,.2,1) both}
+@keyframes heroSwapIn{from{opacity:0;transform:translateY(12px) scale(.99);filter:blur(5px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes musicDiscSpin{to{transform:rotate(360deg)}}
+@keyframes musicOrbit{to{transform:rotate(360deg)}}
+@keyframes musicPromoGlow{to{transform:rotate(360deg)}}
+.profile-primary-actions{display:flex;align-items:center;gap:8px}
+.profile-player-btn{width:39px;height:39px;border:1px solid #b18cff55;border-radius:12px;background:linear-gradient(140deg,#8e6ae8,#c06fba);color:#fff;font-size:20px;box-shadow:0 5px 20px #8e6ae833}
+.profile-more-btn{width:39px;height:39px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:#fff;font-size:20px}
+.pixy-music-stage{position:relative;min-height:min(760px,calc(100vh - 150px));padding:30px 22px 25px;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #ffffff18;border-radius:28px;background:radial-gradient(ellipse at 50% 35%,#4d3978 0%,#251d3f 38%,#11101a 78%);box-shadow:0 28px 90px #0005}
+.pixy-music-stage:before{content:"";position:absolute;inset:-40%;z-index:-2;background:conic-gradient(from 20deg,transparent,#8b67d622,transparent,#d36ebd22,transparent);animation:musicPromoGlow 24s linear infinite}
+.pixy-music-orb{position:absolute;z-index:-1;width:330px;height:330px;border-radius:50%;filter:blur(55px);opacity:.3;pointer-events:none;animation:musicOrbFloat 8s ease-in-out infinite alternate}
+.pixy-music-orb-a{top:5%;left:-10%;background:#9c6dff}
+.pixy-music-orb-b{right:-10%;bottom:0;background:#e56bb9;animation-delay:-4s}
+.pixy-music-topline{position:absolute;top:22px;left:25px;right:25px;display:flex;justify-content:space-between;gap:12px;color:#c9b9ed;font-size:9px;font-weight:800;letter-spacing:2px}
+.pixy-player-counter{color:#ffffffa8;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.pixy-player-cover{position:relative;width:min(330px,68vw);aspect-ratio:1;margin:36px 0 26px;display:grid;place-items:center;overflow:hidden;border:1px solid #ffffff55;border-radius:32px;background:linear-gradient(145deg,#a78aff,#6e4bba 45%,#d77eb9);box-shadow:0 25px 85px #08051199,0 0 70px #c18bff44;transform:rotate(-2deg);animation:playerCoverFloat 5s ease-in-out infinite}
+.pixy-player-cover:before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,#ffffff55,transparent,#ffffff22,transparent);animation:musicPromoGlow 16s linear infinite}
+.pixy-player-cover-orbit{position:absolute;width:84%;aspect-ratio:1;border:1px solid #ffffff55;border-radius:50%;transform:rotate(-22deg) scaleY(.72)}
+.pixy-player-cover-disc{position:absolute;width:72%;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle,#181321 0 3px,#332440 4px 6px);box-shadow:0 12px 45px #130b24aa;animation:musicDiscSpin 18s linear infinite}
+.pixy-player-cover-disc:after{content:"";position:absolute;inset:39%;border-radius:50%;background:linear-gradient(135deg,#ffe0fa,#a58bff 55%,#e88bc3);box-shadow:0 0 20px #f3c4ff88}
+.pixy-player-cover-glyph{position:relative;z-index:2;width:70px;height:70px;border:1px solid #ffffff88;border-radius:23px;display:grid;place-items:center;background:#ffffff22;backdrop-filter:blur(12px);font:900 35px Manrope;color:#fff;box-shadow:0 12px 40px #20133388}
+.pixy-player-cover-meta{position:absolute;left:20px;right:20px;bottom:17px;z-index:3;display:grid;gap:4px;text-shadow:0 2px 12px #170d2b}
+.pixy-player-cover-meta b{font:800 12px Manrope;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pixy-player-cover-meta small{font-size:8px;letter-spacing:2px;color:#ffffffc7}
+.pixy-player-details{text-align:center;max-width:90%;margin-bottom:18px}
+.pixy-player-kicker{font-size:8px;letter-spacing:3px;color:#c5a8ff;font-weight:900}
+.pixy-player-details h2{font:800 clamp(20px,3vw,27px) Manrope;margin:8px 0 5px;max-width:100%;overflow-wrap:anywhere}
+.pixy-player-details p{font-size:11px;color:#c5bdd6;margin:0}
+.pixy-player-controls{display:flex;align-items:center;justify-content:center;gap:24px}
+.pixy-player-controls button{width:48px;height:48px;border:1px solid #ffffff26;border-radius:50%;background:#ffffff12;color:#fff;font-size:20px;backdrop-filter:blur(12px);transition:transform .2s,background .2s}
+.pixy-player-controls button:active{transform:scale(.88)}
+.pixy-player-controls .pixy-player-play{width:66px;height:66px;border:0;background:linear-gradient(145deg,#b08cff,#e47dc2);font-size:25px;box-shadow:0 8px 35px #bd81ff55}
+.pixy-player-controls button:disabled{opacity:.35;cursor:not-allowed}
+.pixy-player-volume{width:min(340px,88%);display:flex;align-items:center;gap:10px;margin-top:24px;color:#cfc3e6;font-size:12px}
+.pixy-player-volume input{flex:1;accent-color:#c39aff;min-width:0}
+.pixy-player-volume output{width:38px;text-align:right;font-size:9px;font-variant-numeric:tabular-nums}
+.pixy-player-foot{margin-top:22px;color:#a99cbd;font-size:9px;text-align:center}
+.pixy-beta-theme{--bg:#080e1c;--panel:#101c31;--panel2:#162641;--line:rgba(142,190,255,.18);--muted:#8ca4c6;--text:#eff7ff;--purple:#62c8ff;--pink:#8d9cff;--mint:#78f0d4;background:radial-gradient(ellipse at 15% 0%,#183b6955,transparent 36%),radial-gradient(ellipse at 90% 80%,#522c7450,transparent 42%),#080e1c}
+.pixy-beta-theme .sidebar{border-color:#79b9ff22}
+.pixy-beta-theme .brand-symbol,.pixy-beta-theme .create-btn,.pixy-beta-theme .primary-btn{background:linear-gradient(120deg,#328ce8,#655be5 58%,#bc67c9);box-shadow:0 8px 28px #367ee744}
+.pixy-beta-theme .nav-item.active,.pixy-beta-theme .nav-item:hover{background:linear-gradient(100deg,#2d8bdf33,#8c68e52b);color:#fff}
+.pixy-beta-theme .nav-item.active:before{background:linear-gradient(#64d7ff,#b18cff)}
+.pixy-beta-theme .welcome-banner{background:linear-gradient(110deg,#102b4b,#243b68 55%,#56366b);box-shadow:0 18px 55px #0b1b3877}
+.pixy-beta-theme .music-promo-banner{background:radial-gradient(ellipse at 76% 45%,#67c7ff55,transparent 42%),linear-gradient(112deg,#10243f,#263c6d 55%,#56356d)}
+.pixy-beta-theme .post-card,.pixy-beta-theme .right-card,.pixy-beta-theme .search-panel,.pixy-beta-theme .notification-item,.pixy-beta-theme .chat-panel{background:linear-gradient(145deg,#13243aee,#10192aee);border-color:#83c9ff26;box-shadow:0 14px 36px #02081755}
+.pixy-beta-theme .icon-btn,.pixy-beta-theme .profile-more-btn,.pixy-beta-theme .profile-player-btn{border-color:#86cfff44;background:linear-gradient(145deg,#183452,#202b50);color:#dff5ff}
+.pixy-beta-theme .post-actions button,.pixy-beta-theme .reaction-row button{color:#d8eaff}
+.pixy-beta-theme .reaction-row button{background:#213957;border:1px solid #8bcaff22}
+.pixy-beta-theme .reaction-row button.is-reacted{background:linear-gradient(135deg,#277fbe,#6a62cf);box-shadow:0 0 16px #64c8ff55}
+.pixy-beta-theme .profile-cover{background:linear-gradient(115deg,#153b66,#4262a4 60%,#8354a0)}
+.pixy-beta-theme .profile-avatar{box-shadow:0 0 35px #5ebeff33}
+.pixy-beta-theme .topbar h1,.pixy-beta-theme .profile-main h2{letter-spacing:-.6px}
+.pixy-beta-theme .beta-design-toggle.active{background:linear-gradient(135deg,#2e9cdb,#7564e8);color:white;box-shadow:0 0 20px #55baff66}
+.pixy-beta-theme .pixy-music-stage{background:radial-gradient(ellipse at 50% 35%,#254e80 0%,#1c2c54 40%,#0b1322 78%)}
+.beta-design-toggle{font-weight:900;color:#c9b3ff}
+.beta-design-toggle.active{background:linear-gradient(135deg,#4a84bd,#8265d5);color:#fff}
+@keyframes musicOrbFloat{from{transform:translate3d(-12px,0,0) scale(.9)}to{transform:translate3d(22px,24px,0) scale(1.12)}}
+@keyframes playerCoverFloat{0%,100%{translate:0 0;rotate:-2deg}50%{translate:0 -9px;rotate:1deg}}
+@media(max-width:760px){
+ .music-promo-banner{min-height:245px;padding:22px}
+ .music-promo-copy{max-width:245px}
+ .music-promo-copy h2{font-size:27px}
+ .music-promo-art{right:-80px;opacity:.55;transform:translateY(-50%) scale(.8)}
+ .pixy-music-stage{min-height:calc(100dvh - 180px);padding:55px 14px 25px;border-radius:22px}
+ .pixy-player-cover{width:min(285px,72vw);margin:24px 0 22px}
+ .pixy-player-controls{gap:17px}
+ .pixy-player-controls button{width:44px;height:44px}
+ .pixy-player-controls .pixy-player-play{width:60px;height:60px}
+ .pixy-music-topline{left:16px;right:16px;top:17px;font-size:8px}
+ .profile-primary-actions{gap:7px}
+}
+@media(prefers-reduced-motion:reduce){.music-promo-banner:before,.music-promo-disc,.music-promo-art>i,.pixy-music-stage:before,.pixy-music-orb,.pixy-player-cover,.pixy-player-cover:before,.pixy-player-cover-disc{animation:none!important}}

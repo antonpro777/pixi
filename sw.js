@@ -1,3 +1,15 @@
+// Activate the newest PIXY worker immediately so an older worker cannot keep
+// serving stale application files after an update.
+self.addEventListener('install',event=>{
+ event.waitUntil(self.skipWaiting());
+});
+self.addEventListener('activate',event=>{
+ event.waitUntil((async()=>{
+  const keys=await caches.keys();
+  await Promise.all(keys.filter(key=>key.startsWith('pixy-')).map(key=>caches.delete(key)));
+  await self.clients.claim();
+ })());
+});
 self.addEventListener('push',event=>{
  event.waitUntil((async()=>{
   let data={};

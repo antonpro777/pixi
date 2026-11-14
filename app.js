@@ -116,6 +116,21 @@ $('profileMoreBtn')?.addEventListener('click',()=>{const menu=$('profileMoreMenu
 $('profileMoreClose')?.addEventListener('click',()=>{$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');});
 $('refreshNotifications')?.addEventListener('click',loadNotifications);
 $('enableCallNotifications')?.addEventListener('click',enablePixyWebPush);
+$('sendUpdatePushBtn')?.addEventListener('click',sendPixyUpdatePush);
+async function sendPixyUpdatePush(){
+ if(!sb||!user)return toast('Сначала войди в PIXY.');
+ const button=$('sendUpdatePushBtn');
+ if(button){button.disabled=true;button.textContent='Отправляем…'}
+ try{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error('Сессия не найдена. Войди заново.');
+  const response=await fetch('/api/send-update-push',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||'Не удалось отправить уведомления.');
+  toast('Отправлено: '+result.sent+'. Ошибок доставки: '+result.failed+'.');
+ }catch(error){console.error('PIXY update push:',error);toast(error.message||'Ошибка отправки уведомления.')}
+ finally{if(button){button.disabled=false;button.textContent='Отправить уведомление об обновлении'}}
+}
 document.addEventListener('click',e=>{if(!e.target.closest('.profile-actions')){$('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false')}});
 
 let activityRealtimeChannel=null,activityToastTimer=null;

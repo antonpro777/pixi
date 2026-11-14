@@ -1086,3 +1086,22 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
  #publicProfileModal .public-profile-back{top:10px;left:10px;min-height:39px;padding:0 12px}
  #publicProfileModal .public-profile-posts{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 }
+
+
+/* Clean icon-only call action on public profiles */
+#publicProfileModal .public-profile-actions .public-profile-call-icon{
+ width:44px;min-width:44px;height:44px;min-height:44px;flex:0 0 44px;
+ display:grid;place-items:center;padding:0;border:1px solid #c7a9ff55;
+ border-radius:13px;background:linear-gradient(145deg,#302442,#211a30);
+ color:#eadfff;box-shadow:0 6px 20px #0002;
+}
+#publicProfileModal .public-profile-actions .public-profile-call-icon:hover{
+ border-color:#c7a9ffb0;background:linear-gradient(145deg,#49335f,#2b2140);
+}
+#publicProfileModal .public-profile-call-icon svg{
+ display:block;width:21px;height:21px;fill:none;stroke:currentColor;
+ stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+#publicProfileModal .public-profile-call-icon:focus-visible{
+ outline:2px solid #c7a9ff;outline-offset:3px;
+}

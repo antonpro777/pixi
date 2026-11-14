@@ -964,3 +964,82 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
 .theme-light .music-promo-banner,.theme-light .welcome-banner{color:#fff}
 .theme-light .gift-value-note{background:#fff;color:#68748a}
 @media(max-width:700px){.settings-tabs{display:grid;grid-template-columns:1fr}.settings-tab{text-align:left}.settings-card{padding:17px}.my-gift-card{flex-wrap:wrap}.my-gift-card .primary-btn{margin-left:auto}.theme-choice{flex:1;min-width:120px}}
+
+
+/* PIXY launch animation refresh */
+.splash{background:radial-gradient(ellipse at 50% 44%,#342353 0%,#171322 42%,#08080e 100%);gap:0;animation:splashOut .65s ease 2.65s forwards}
+.splash-orbit{width:310px;height:310px;border:1px solid #c7a5ff45;box-shadow:0 0 80px #a77cff12;animation:orbit 9s linear infinite}
+.orbit-b{width:430px;height:430px;border-style:dashed;border-color:#ff9ed52c;animation-direction:reverse}
+.brand-mark{width:112px;height:112px;border-radius:34px;background:linear-gradient(145deg,#d6c0ff,#8b63f5 55%,#f18bcf);box-shadow:0 0 100px #9a6bff88,0 0 0 12px #a98aff0b;animation:markIn 1.1s cubic-bezier(.16,.9,.2,1) both,brandPulse 2.6s ease-in-out .9s infinite}
+.brand-mark .pixy-mark{width:70px;height:70px;filter:drop-shadow(0 3px 8px #51367b77)}
+.splash-word{font-size:40px;letter-spacing:13px;margin:25px 0 8px 13px;animation:fadeUp .8s .45s both}
+.splash-line{font-size:9px;letter-spacing:4px;animation:fadeUp .8s .65s both}
+.splash-caption{margin-top:26px;font-size:8px;letter-spacing:3px;color:#a79abf;animation:fadeUp .8s .9s both}
+@keyframes brandPulse{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-5px) scale(1.035)}}
+@keyframes splashOut{to{opacity:0;visibility:hidden;transform:scale(1.025)}}
+.brand{animation:pixyLogoCycle 10s ease-in-out infinite;transform-origin:left center}
+.brand-symbol{transition:filter .3s}
+@keyframes pixyLogoCycle{0%,88%,100%{transform:translateY(0)}91%{transform:translateY(-7px)}94%{transform:translateY(1px)}97%{transform:translateY(-2px)}}
+.gift-tile-custom{position:relative;overflow:hidden;transition:transform .25s,border-color .25s,box-shadow .25s}
+.gift-tile-custom:hover{transform:translateY(-5px) rotate(-.35deg);box-shadow:0 15px 38px #0005;border-color:#c5a4ff88}
+.gift-tile-custom .gift-art{transition:transform .35s cubic-bezier(.2,.8,.2,1),filter .35s}
+.gift-tile-custom:hover .gift-art{transform:translateY(-4px) rotate(5deg) scale(1.12);filter:drop-shadow(0 8px 18px #d6b8ff88)}
+.gift-shop-section{width:100%;margin:0 0 24px}
+.gift-shop-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 13px;color:#f3eaff}
+.gift-shop-section-head b{font:800 15px Manrope}
+.gift-shop-section-head small{font-size:10px;color:#a9a1b9}
+.gift-grid-inner{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.neft-grid-inner{grid-template-columns:repeat(auto-fill,minmax(168px,1fr))}
+.neft-tile{min-height:215px;padding:15px 12px;border:1px solid hsl(var(--neft-hue) 90% 82% / .28);border-radius:18px;color:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:inset 0 1px 0 #ffffff22,0 12px 32px #0003;isolation:isolate}
+.neft-tile:before{content:'';position:absolute;inset:-60% -30%;background:linear-gradient(115deg,transparent 42%,#ffffff15 50%,transparent 58%);transform:translateX(-65%) rotate(12deg);animation:neftSheen 6s ease-in-out infinite;z-index:-1}
+.neft-tile:after{content:'';position:absolute;inset:8px;border:1px solid #ffffff1c;border-radius:13px;pointer-events:none}
+.neft-tile .gift-art{width:92px;height:92px;display:grid;place-items:center;filter:drop-shadow(0 7px 16px #0007)}
+.neft-tile .gift-art svg{width:78px;height:78px}
+.neft-edition{font-size:8px;letter-spacing:1.5px;color:#f4ddff;background:#ffffff12;border:1px solid #ffffff20;border-radius:999px;padding:5px 8px}
+.neft-tile>b{font-size:11px;text-align:center;line-height:1.35}
+.neft-price{font:800 14px Manrope;color:#fff}
+.neft-growth{font-size:9px;color:#e3d5f7}
+.neft-one-of-one{order:999;border-color:#ffe5a4a8;box-shadow:0 0 0 1px #f5d18d35,0 0 34px #d69a3e25,inset 0 1px 0 #fff6}
+.neft-one-of-one .neft-edition{background:linear-gradient(90deg,#8e5d22,#d4a44d);color:#fff7df}
+@keyframes neftSheen{0%,58%,100%{transform:translateX(-70%) rotate(12deg)}75%{transform:translateX(70%) rotate(12deg)}}
+.my-neft-card{border-color:#c39aff55;background:linear-gradient(110deg,#241b39,#171420)}
+.public-profile-card{width:min(1100px,100%);height:100%;max-height:100vh;overflow-y:auto;border-radius:0;padding:0;background:#100e18}
+#publicProfileModal{padding:0}
+#publicProfileModal .modal-backdrop{background:#05040bea;backdrop-filter:blur(14px)}
+#publicProfileModal .modal-card{position:relative;max-width:none}
+.public-profile-cover{height:220px;position:relative;display:flex;align-items:flex-end;padding:20px 30px;background-size:cover;color:#ffffff99;font-size:9px;letter-spacing:3px}
+.public-profile-body{max-width:1000px;margin:0 auto;padding:0 28px 40px}
+.public-profile-head{display:flex;align-items:center;gap:15px;margin-top:-40px;position:relative}
+.public-profile-head>div{min-width:0;flex:1;padding-top:36px}
+.public-profile-head h2{margin:0 0 4px;font:800 23px Manrope}
+.public-profile-head small{color:#b5a9ca}
+.public-profile-avatar{width:86px;height:86px;border:5px solid #100e18;border-radius:27px;display:grid;place-items:center;background:linear-gradient(135deg,#ad8bff,#e88acb);font-size:32px;flex-shrink:0}
+.public-profile-actions{display:flex;gap:9px;margin:20px 0}
+.public-profile-bio{color:#bdb4cb;line-height:1.6}
+.public-profile-section{margin-top:30px}
+.public-profile-section h3{font:800 15px Manrope;margin:0 0 13px}
+.public-profile-posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.public-profile-post{border:1px solid #ffffff14;background:#ffffff08;border-radius:15px;overflow:hidden}
+.public-profile-post img,.public-profile-post video{width:100%;aspect-ratio:4/5;object-fit:cover;background:#08070c}
+.public-profile-post p{padding:10px;margin:0;color:#cfc5dc;font-size:11px}
+.public-profile-gifts{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:12px}
+.public-profile-gift{padding:12px;border:1px solid #ffffff16;border-radius:14px;background:#ffffff08;display:grid;justify-items:center;gap:7px;text-align:center}
+.public-profile-gift .gift-art{width:70px;height:70px;display:grid;place-items:center}
+.public-profile-gift .gift-art svg{width:64px;height:64px}
+.public-profile-gift b{font-size:10px}
+.public-profile-gift small{color:#e4cfff;font-size:9px}
+@media(max-width:640px){.public-profile-body{padding:0 14px 28px}.public-profile-cover{height:160px}.public-profile-posts{grid-template-columns:1fr 1fr}.public-profile-head h2{font-size:18px}.public-profile-head{gap:9px}.public-profile-avatar{width:70px;height:70px}}
+.call-card{position:relative;overflow:hidden;width:min(100%,430px);padding:30px 24px;border-radius:28px;background:linear-gradient(155deg,#241b36,#111019 72%);border:1px solid #ffffff20;box-shadow:0 30px 100px #000a}
+.call-card:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 10%,#9e7bff20,transparent 48%);pointer-events:none}
+.call-avatar{position:relative;width:104px;height:104px;box-shadow:0 0 0 9px #a98aff10,0 0 50px #9e7bff30}
+.call-controls{position:relative;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:24px}
+.call-controls button{width:62px;height:62px;min-height:62px;padding:0;border-radius:19px;display:grid;place-items:center;font-size:23px;border:1px solid #ffffff22;background:#ffffff12;box-shadow:0 8px 24px #0004;transition:transform .18s,background .18s}
+.call-controls button:hover{transform:translateY(-3px);background:#ffffff20}
+.call-controls .call-accept{background:linear-gradient(145deg,#2a9c6a,#16754d);border-color:#75edb588}
+.call-controls .call-decline,.call-controls .call-hangup{background:linear-gradient(145deg,#d94c6b,#a9284b);border-color:#ff9fb188}
+.call-card[data-call-direction="incoming"] .call-utility{display:none}
+.call-controls .call-hangup{width:62px;height:62px;grid-column:auto}
+.call-controls .call-utility{width:52px;height:52px;min-height:52px;border-radius:16px;font-size:19px}
+.call-brand-label{position:relative;font-size:9px;letter-spacing:3px;color:#bca7e9;margin-bottom:12px}
+.call-card h2,.call-card p,.call-timer{position:relative}
+@media(max-width:520px){.call-card{padding:24px 16px}.call-controls{gap:9px}.call-controls button{width:56px;height:56px;min-height:56px}}

@@ -28,7 +28,7 @@ function nav(view){
  const target=$('view-'+view);
  if(target){target.classList.remove('hidden');target.classList.remove('view-enter');void target.offsetWidth;target.classList.add('view-enter')}
  document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
- const titles={home:['ТВОЯ ЛЕНТА','Главная'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],notifications:['ТВОЯ АКТИВНОСТЬ','Уведомления'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация']};
+ const titles={home:['ТВОЯ ЛЕНТА','Главная'],music:['PIXY MUSIC','Музыкальный плеер'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],notifications:['ТВОЯ АКТИВНОСТЬ','Уведомления'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация']};
  $('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';
  if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='notifications'&&user){localStorage.setItem(activitySeenKey(),String(Date.now()));setActivityBadge(0);loadNotifications();}if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();
 }
@@ -331,7 +331,7 @@ async function loadFeed(){
   const liked=own?.reaction==='like';
   const commentCount=p.comments?.[0]?.count||0;
   const reactionCount=(p.reactions||[]).filter(r=>r.reaction==='like').length;
-  return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><button class="post-author-link" type="button" data-open-profile="'+p.author_id+'">'+authorAvatarMarkup(p.profiles)+'</button><button class="post-user post-author-link" type="button" data-open-profile="'+p.author_id+'"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></button></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+['❤️','🤩','😎','😂','🔥'].map(em=>' <button class="'+(own?.reaction===em?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+em+'" aria-label="Реакция '+em+'">'+em+'</button>').join('')+'</div></article>';
+  return '<article class="post-card" data-post-card="'+p.id+'"><div class="post-head"><button class="post-author-link" type="button" data-open-profile="'+p.author_id+'">'+authorAvatarMarkup(p.profiles)+'</button><button class="post-user post-author-link" type="button" data-open-profile="'+p.author_id+'"><strong>'+safe(p.profiles?.username||'pixy_user')+(p.profiles?.is_verified?' <span class="verified-badge">✓</span>':'')+'</strong><small>'+new Date(p.created_at).toLocaleString()+'</small></button></div><div class="post-image">'+renderPostMedia(p)+'</div>'+(p.music_title?'<small class="post-music-title">♫ '+safe(p.music_title)+'</small>':'')+'<p class="post-caption">'+safe(p.caption||'')+'</p><div class="post-actions"><button class="'+(liked?'is-liked':'')+'" data-like="'+p.id+'">'+(liked?'♥':'♡')+' <span data-like-count>'+reactionCount+'</span></button><button data-comment="'+p.id+'">▢ <span data-comment-count>'+commentCount+'</span> Комментарии</button></div><div class="reaction-row">'+[['❤️','like'],['👎','dislike'],['🤡','clown'],['🤢','sick'],['🤩','star_eyes'],['😎','cool']].map(([emoji,key])=>' <button type="button" class="'+(own?.reaction===key?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+key+'" aria-label="Реакция '+emoji+'">'+emoji+'</button>').join('')+'</div></article>';
  }).join('');
  bindVideoAudio(feed);bindCustomVideoControls(feed);observeVisibleMedia(feed);
 }
@@ -366,7 +366,7 @@ function createStoryPicker(){
 
 
 // PIXY interface sounds (Web Audio; no external sound files required)
-let pixyAudioContext=null,callToneTimer=null,callToneOscillators=[];
+let pixyAudioContext=null,callToneTimer=null,callToneStopTimer=null,callToneOscillators=[];
 async function unlockCallAudio(){
  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
  if(!pixyAudioContext)pixyAudioContext=new AC();
@@ -381,7 +381,7 @@ function playPixyBeep(kind='tap'){
   patterns.forEach(([freq,delay,duration])=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(.12,now+delay+.015);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.02)});
  }catch(err){console.warn('PIXY sound:',err)}
 }
-function stopCallTone(){if(callToneTimer){clearInterval(callToneTimer);callToneTimer=null}callToneOscillators.forEach(o=>{try{o.stop()}catch(_){}});callToneOscillators=[]}
+function stopCallTone(){if(callToneTimer){clearInterval(callToneTimer);callToneTimer=null}if(callToneStopTimer){clearTimeout(callToneStopTimer);callToneStopTimer=null}callToneOscillators.forEach(o=>{try{o.stop()}catch(_){}});callToneOscillators=[]}
 function startCallTone(kind){
  stopCallTone();
  const playPattern=()=>{
@@ -398,7 +398,7 @@ function startCallTone(kind){
    osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+(incoming?1.32:2.0));callToneOscillators.push(osc);
   });
  };
- playPattern();callToneTimer=setInterval(playPattern,kind==='incoming'?3200:6000);
+ playPattern();callToneTimer=setInterval(playPattern,kind==='incoming'?3200:6000);if(kind==='incoming')callToneStopTimer=setTimeout(stopCallTone,10000);
 }
 
 let activeConversation=null,activeChatUser=null,activeChatChannel=null,voiceRecorder=null,voiceChunks=[];
@@ -544,7 +544,7 @@ async function acceptVoiceCall(){
 async function handleCallSignal(s,cid=callChannelConversation){
  if(!s||s.from===user?.id)return;
  if(cid){activeCallChannel=callChannels.get(cid)||activeCallChannel;callChannelConversation=cid;}
- if(s.type==='ring'){if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';activeConversation=cid||activeConversation;activeChatUser=s.from;await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');startCallTone('incoming');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden');sendCallSignal('ready').catch(console.warn)}
+ if(s.type==='ring'){if(callDirection==='incoming'&&callChannelConversation===cid&&activeChatUser===s.from)return;if(callDirection||callPeer){sendCallSignal('busy').catch(()=>{});return}callDirection='incoming';activeConversation=cid||activeConversation;activeChatUser=s.from;await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');startCallTone('incoming');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden');$('callHangupBtn').classList.add('hidden');sendCallSignal('ready').catch(console.warn)}
  else if(s.type==='ready'){if(callPeerReadyTimer){clearTimeout(callPeerReadyTimer);callPeerReadyTimer=null}const resolve=callPeerReadyResolve;callPeerReadyResolve=null;resolve?.()}
  else if(s.type==='offer'){stopCallTone();callPendingOffer=s.description;if(!callDirection){callDirection='incoming';await loadCallPeerProfile(s.from,s.name||'Контакт');callUi(true,'Входящий звонок…');$('callAcceptBtn').classList.remove('hidden');$('callDeclineBtn').classList.remove('hidden')}if($('callAcceptBtn').dataset.acceptRequested==='1')await acceptVoiceCall()}
  else if(s.type==='answer'&&callPeer){stopCallTone();try{await callPeer.setRemoteDescription(new RTCSessionDescription(s.description));for(const c of callPendingIce.splice(0)){await callPeer.addIceCandidate(new RTCIceCandidate(c))}}catch(err){console.warn(err)}}
@@ -770,10 +770,10 @@ $('feed').addEventListener('click',async e=>{
  if(rb){
   if(!sb||!user)return toast('Войди в PIXY, чтобы реагировать.');
   const card=rb.closest('[data-post-card]');
-  const selected=rb.classList.contains('is-reacted');
-  const {error}=selected?await sb.from('reactions').delete().eq('post_id',rb.dataset.reactPost).eq('user_id',user.id):await sb.from('reactions').upsert({post_id:rb.dataset.reactPost,user_id:user.id,reaction:rb.dataset.reaction},{onConflict:'post_id,user_id'});
-  if(error)return toast('Не удалось поставить реакцию: '+error.message);
-  if(card){card.querySelectorAll('[data-react-post]').forEach(x=>x.classList.toggle('is-reacted',x===rb&&!selected));}
+  const selected=rb.classList.contains('is-reacted');rb.disabled=true;
+  const result=selected?await sb.from('reactions').delete().eq('post_id',rb.dataset.reactPost).eq('user_id',user.id):await sb.from('reactions').upsert({post_id:rb.dataset.reactPost,user_id:user.id,reaction:rb.dataset.reaction},{onConflict:'post_id,user_id'});
+  rb.disabled=false;if(result.error)return toast('Не удалось поставить реакцию: '+result.error.message);
+  if(card){card.querySelectorAll('[data-react-post]').forEach(x=>x.classList.toggle('is-reacted',!selected&&x.dataset.reaction===rb.dataset.reaction));}
   toast(selected?'Реакция убрана':'Реакция добавлена');return;
  }
  const b=e.target.closest('[data-like]');
@@ -1154,6 +1154,24 @@ $('captureShutter').onclick=async()=>{
   }
  }catch(err){toast(err.message||'Ошибка камеры.')}finally{cameraBusy=false}
 };
+
+let pixyPlayerTracks=[],pixyPlayerOrder=[],pixyPlayerIndex=0,pixyPlayerReady=false;
+function shufflePixyTracks(rows){const a=rows.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function paintPixyPlayer(){const track=pixyPlayerOrder[pixyPlayerIndex];if(!track)return;$('pixyPlayerTitle').textContent=track.title||'Без названия';$('pixyPlayerArtist').textContent=track.artist||'PIXY Music';$('pixyPlayerCoverGlyph').textContent=(track.title||'♫').trim().slice(0,1).toUpperCase()||'♫';$('pixyPlayerCoverTitle').textContent=track.title||'PIXY MUSIC';$('pixyPlayerCoverArtist').textContent=track.artist||'PIXY MUSIC';$('pixyPlayerAudio').src=track.audio_url;$('pixyPlayerAudio').load();$('pixyPlayerCounter').textContent=(pixyPlayerIndex+1)+' / '+pixyPlayerOrder.length;$('pixyPlayerPrev').disabled=pixyPlayerOrder.length<2;$('pixyPlayerNext').disabled=pixyPlayerOrder.length<2;$('pixyPlayerPlay').textContent='▶'}
+async function openPixyMusicPlayer(){nav('music');if(!pixyPlayerReady){$('pixyPlayerTitle').textContent='Загружаем музыку PIXY…';const {data,error}=await sb.from('music_tracks').select('id,title,artist,audio_url').eq('active',true);if(error){$('pixyPlayerTitle').textContent='Не удалось загрузить музыку';toast('Музыкальная библиотека недоступна: '+error.message);return}pixyPlayerTracks=data||[];if(!pixyPlayerTracks.length){$('pixyPlayerTitle').textContent='Пока нет доступных треков';$('pixyPlayerArtist').textContent='Музыка появится здесь, когда её добавят в PIXY';return}pixyPlayerOrder=shufflePixyTracks(pixyPlayerTracks);pixyPlayerIndex=0;pixyPlayerReady=true;paintPixyPlayer()}const audio=$('pixyPlayerAudio');audio.volume=Number($('pixyPlayerVolume').value)/100;audio.play().then(()=>$('pixyPlayerPlay').textContent='Ⅱ').catch(()=>$('pixyPlayerPlay').textContent='▶')}
+function pixyPlayerNext(direction=1){if(!pixyPlayerOrder.length)return;const wasPlaying=!$('pixyPlayerAudio').paused;if(direction>0&&pixyPlayerIndex>=pixyPlayerOrder.length-1){pixyPlayerOrder=shufflePixyTracks(pixyPlayerTracks);pixyPlayerIndex=0}else pixyPlayerIndex=(pixyPlayerIndex+direction+pixyPlayerOrder.length)%pixyPlayerOrder.length;paintPixyPlayer();if(wasPlaying)$('pixyPlayerAudio').play().catch(()=>{})}
+$('pixyPlayerPlay').addEventListener('click',async()=>{const a=$('pixyPlayerAudio');if(!a.src){await openPixyMusicPlayer();return}if(a.paused){try{await a.play()}catch(_){toast('Не удалось запустить трек. Попробуй ещё раз.')}}else a.pause()});
+$('pixyPlayerPrev').addEventListener('click',()=>pixyPlayerNext(-1));$('pixyPlayerNext').addEventListener('click',()=>pixyPlayerNext(1));
+$('pixyPlayerVolume').addEventListener('input',e=>{$('pixyPlayerAudio').volume=Number(e.target.value)/100;$('pixyPlayerVolumeValue').textContent=e.target.value+'%'});
+$('pixyPlayerAudio').addEventListener('ended',()=>pixyPlayerNext(1));$('pixyPlayerAudio').addEventListener('play',()=>$('pixyPlayerPlay').textContent='Ⅱ');$('pixyPlayerAudio').addEventListener('pause',()=>$('pixyPlayerPlay').textContent='▶');
+$('openMusicPlayerBanner').addEventListener('click',openPixyMusicPlayer);$('profilePlayerBtn').addEventListener('click',()=>{$('profileMoreMenu')?.classList.add('hidden');openPixyMusicPlayer()});
+let homeHeroTimer=null,homeHeroMusicActive=false;
+function startHomeHeroRotation(){if(homeHeroTimer)return;homeHeroTimer=setInterval(()=>{if(document.hidden||$('view-home')?.classList.contains('hidden'))return;homeHeroMusicActive=!homeHeroMusicActive;$('homeHeroOriginal').classList.toggle('hidden',homeHeroMusicActive);$('homeHeroMusic').classList.toggle('hidden',!homeHeroMusicActive);const target=homeHeroMusicActive?$('homeHeroMusic'):$('homeHeroOriginal');target.classList.remove('hero-swap-in');void target.offsetWidth;target.classList.add('hero-swap-in')},8000)}
+let pixyBetaDesign=localStorage.getItem('pixy-beta-design')==='1';
+function applyPixyBetaDesign(){document.body.classList.toggle('pixy-beta-theme',pixyBetaDesign);const b=$('betaDesignToggle');if(b){b.classList.toggle('active',pixyBetaDesign);b.setAttribute('aria-pressed',String(pixyBetaDesign));b.title=pixyBetaDesign?'Вернуться к старому дизайну':'Включить новый дизайн (бета)';b.textContent=pixyBetaDesign?'✦':'◇'}}
+$('betaDesignToggle').addEventListener('click',()=>{pixyBetaDesign=!pixyBetaDesign;localStorage.setItem('pixy-beta-design',pixyBetaDesign?'1':'0');applyPixyBetaDesign();toast(pixyBetaDesign?'Включён новый дизайн PIXY · Бета':'Возвращён старый дизайн PIXY')});
+applyPixyBetaDesign();startHomeHeroRotation();
+
 async function loadMusicLibrary(){
  if(!sb)return;
  const {data,error}=await sb.from('music_tracks').select('id,title,artist,audio_url').eq('active',true).order('created_at',{ascending:false});

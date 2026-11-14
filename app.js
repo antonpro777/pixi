@@ -178,18 +178,20 @@ async function loadNotifications(){
   const {data:posts}=await sb.from('posts').select('id').eq('author_id',user.id).limit(100);
   const ids=(posts||[]).map(p=>p.id);
   if(ids.length){
-   const [{data:comments},{data:reactions}]=await Promise.all([
+   const [{data:comments},{data:reactions},{data:likes}]=await Promise.all([
     sb.from('comments').select('id,post_id,author_id,body,created_at,profiles(username)').in('post_id',ids).neq('author_id',user.id).order('created_at',{ascending:false}).limit(25),
-    sb.from('reactions').select('post_id,user_id,reaction,created_at,profiles(username)').in('post_id',ids).neq('user_id',user.id).order('created_at',{ascending:false}).limit(25)
+    sb.from('reactions').select('post_id,user_id,reaction,created_at,profiles(username)').in('post_id',ids).neq('user_id',user.id).order('created_at',{ascending:false}).limit(25),
+    sb.from('post_likes').select('post_id,user_id,created_at,profiles(username)').in('post_id',ids).neq('user_id',user.id).order('created_at',{ascending:false}).limit(25)
    ]);
    for(const x of comments||[])items.push({type:'comment',name:x.profiles?.username||'Пользователь',text:'оставил комментарий: '+(x.body||''),date:x.created_at,action:'profile',id:x.id});
-   for(const x of reactions||[])items.push({type:'like',name:x.profiles?.username||'Пользователь',text:x.reaction==='like'?'поставил лайк твоей публикации':'оставил реакцию '+x.reaction,date:x.created_at,action:'profile',id:x.id});
+   for(const x of reactions||[])items.push({type:'reaction',name:x.profiles?.username||'Пользователь',text:'оставил реакцию '+x.reaction,date:x.created_at,action:'profile',id:x.post_id});
+   for(const x of likes||[])items.push({type:'like',name:x.profiles?.username||'Пользователь',text:'поставил лайк твоей публикации',date:x.created_at,action:'profile',id:x.post_id});
   }
  }catch(err){console.warn('PIXY post notifications:',err)}
  try{const {data:announcements}=await sb.from('announcements').select('id,title,body,published_at').not('published_at','is',null).order('published_at',{ascending:false}).limit(10);for(const x of announcements||[])items.push({type:'announcement',name:'PIXY',text:x.title+' — '+x.body,date:x.published_at,action:'home',id:x.id})}catch(err){console.warn('PIXY announcements feed:',err)}
  items.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
- const icons={message:'✉',follow:'＋',comment:'▤',like:'♥',announcement:'✦'};
- const colors={message:'message',follow:'follow',comment:'comment',like:'like',announcement:'announcement'};
+ const icons={message:'✉',follow:'＋',comment:'▤',like:'♥',reaction:'✧',announcement:'✦'};
+ const colors={message:'message',follow:'follow',comment:'comment',like:'like',reaction:'reaction',announcement:'announcement'};
  box.innerHTML=items.length?items.slice(0,60).map(x=>'<article class="notification-item"><span class="notification-icon '+colors[x.type]+'">'+icons[x.type]+'</span><div class="notification-copy"><b>@'+safe(x.name)+'</b><p>'+safe(x.text)+'</p><small>'+new Date(x.date).toLocaleString()+'</small></div><span class="notification-arrow">›</span></article>').join(''):'<div class="notification-empty"><span>✦</span><b>Пока тихо — и это нормально</b><p>Новые сообщения, подписки, комментарии и реакции появятся здесь.</p></div>';
  let seen=0;try{seen=Number(localStorage.getItem(activitySeenKey()))||Date.now()}catch(_){seen=Date.now()}
  setActivityBadge(items.filter(x=>new Date(x.date||0).getTime()>seen).length);
@@ -367,15 +369,15 @@ function observeVisibleMedia(root){
 function authorAvatarMarkup(p,cls='avatar post-author-avatar'){const initial=safe((p?.display_name||p?.username||'P').slice(0,1).toUpperCase());return p?.avatar_url?'<span class="'+cls+'"><img src="'+safe(p.avatar_url)+'" alt="Аватар @'+safe(p.username||'пользователь')+'" loading="lazy" decoding="async"></span>':'<span class="'+cls+' avatar-gradient">'+initial+'</span>'}
 async function loadFeed(){
  if(!sb)return;
- const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified,reactions_enabled),comments(count),reactions(user_id,reaction,profiles!reactions_user_id_fkey(username,display_name))').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
+ const {data,error}=await sb.from('posts').select('id,author_id,caption,media_url,media_type,media_items,music_url,music_title,original_volume,music_volume,media_filter,created_at,profiles!posts_author_id_fkey(username,display_name,avatar_url,is_verified,reactions_enabled),comments(count),post_likes(user_id,created_at),reactions(user_id,reaction,profiles!reactions_user_id_fkey(username,display_name))').in('visibility',['public','friends']).order('created_at',{ascending:false}).limit(30);
  if(error){console.warn(error);toast('Не удалось загрузить ленту: '+error.message);return}
  const feed=$('feed');
  if(!data?.length){feed.innerHTML='<div class="empty-state"><div class="empty-icon">✧</div><h2>Лента только начинается</h2><p>Опубликуй первый момент и позови друзей в PIXY.</p></div>';return}
  feed.innerHTML=data.map(p=>{
   const own=(p.reactions||[]).find(r=>r.user_id===user?.id);
-  const liked=own?.reaction==='like';
+  const liked=(p.post_likes||[]).some(r=>r.user_id===user?.id);
   const commentCount=p.comments?.[0]?.count||0;
-  const reactionCount=(p.reactions||[]).filter(r=>r.reaction==='like').length;
+  const reactionCount=(p.post_likes||[]).length;
   const reactionKeys=[['❤️','heart'],['👎','dislike'],['🤡','clown'],['🤢','sick'],['🤩','star_eyes'],['😎','cool']];
   const showReactionPanel=profile?.reactions_enabled!==false&&p.profiles?.reactions_enabled!==false;
   const reactionPanel=showReactionPanel?'<div class="reaction-row">'+reactionKeys.map(([emoji,key])=>{const rows=(p.reactions||[]).filter(r=>r.reaction===key);const names=rows.map(r=>'@'+(r.profiles?.username||'user'));return '<button type="button" class="'+(own?.reaction===key?'is-reacted':'')+'" data-react-post="'+p.id+'" data-reaction="'+key+'" title="'+safe(names.join(', ')||'Пока нет реакций')+'" aria-label="'+emoji+', '+rows.length+' реакций"><span>'+emoji+'</span><small>'+rows.length+'</small></button>'}).join('')+'</div>':'';
@@ -829,7 +831,7 @@ $('feed').addEventListener('click',async e=>{
  if(b){
   if(!sb||!user)return toast('Войди в PIXY, чтобы ставить лайки.');
   const card=b.closest('[data-post-card]'),was=b.classList.contains('is-liked');
-  const result=was?await sb.from('reactions').delete().eq('post_id',b.dataset.like).eq('user_id',user.id):await sb.from('reactions').upsert({post_id:b.dataset.like,user_id:user.id,reaction:'like'},{onConflict:'post_id,user_id'});
+  const result=was?await sb.from('post_likes').delete().eq('post_id',b.dataset.like).eq('user_id',user.id):await sb.from('post_likes').upsert({post_id:b.dataset.like,user_id:user.id},{onConflict:'post_id,user_id'});
   if(result.error)return toast('Не удалось изменить лайк: '+result.error.message);
   b.classList.toggle('is-liked',!was);b.firstChild.textContent=was?'♡':'♥';
   const count=b.querySelector('[data-like-count]');if(count)count.textContent=String(Math.max(0,Number(count.textContent||0)+(was?-1:1)));

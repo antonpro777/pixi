@@ -508,7 +508,7 @@ function showIncomingCallNotification(invite){
   n.onclick=()=>{try{window.focus();n.close()}catch(_){}};
  }catch(err){console.warn('PIXY call notification:',err)}
 }
-const PIXY_VAPID_PUBLIC_KEY='BLIluiUL3cCihmfN7wg3l3L65Gb6rB9kk_4xbUp_EvEwVSEaKQfYDwWI05EbJ2p3JgWROdWh5TwS8NRXvz-XIPM';
+const PIXY_VAPID_PUBLIC_KEY='BEMFZM38i4e0RW9uSR9zf0CHnNgIHmYTbeuoBtGZsLePgpWG4FRHNpD1A-ebqYYUsEzAl6dj0DcOH5GRGgBBR4Y';
 function pushKeyBytes(value){
  const padding='='.repeat((4-value.length%4)%4);
  const raw=atob((value+padding).replace(/-/g,'+').replace(/_/g,'/'));
@@ -525,12 +525,31 @@ async function savePushSubscription(subscription){
  },{onConflict:'endpoint'});
  if(error)throw error;
 }
+async function ensurePixyPushSubscription(registration){
+ const expectedKey=pushKeyBytes(PIXY_VAPID_PUBLIC_KEY);
+ let subscription=await registration.pushManager.getSubscription();
+ if(subscription){
+  const currentKey=subscription.options?.applicationServerKey;
+  const currentBytes=currentKey?new Uint8Array(currentKey):null;
+  const sameKey=!!currentBytes&&currentBytes.length===expectedKey.length&&expectedKey.every((byte,index)=>byte===currentBytes[index]);
+  if(!sameKey){
+   const oldEndpoint=subscription.endpoint;
+   await subscription.unsubscribe();
+   const {error}=await sb.from('push_subscriptions').delete().eq('user_id',user.id).eq('endpoint',oldEndpoint);
+   if(error)console.warn('PIXY old push subscription cleanup:',error);
+   subscription=null;
+  }
+ }
+ if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:expectedKey});
+ await savePushSubscription(subscription);
+ return subscription;
+}
 async function syncExistingPushSubscription(){
  if(!sb||!user||!('Notification' in window)||Notification.permission!=='granted'||!('serviceWorker' in navigator))return;
  try{
   const registration=await getPixyServiceWorker();
-  const subscription=await registration.pushManager.getSubscription();
-  if(subscription){await savePushSubscription(subscription);$('enableCallNotifications')?.classList.add('hidden')}
+  await ensurePixyPushSubscription(registration);
+  $('enableCallNotifications')?.classList.add('hidden');
  }catch(err){console.warn('PIXY Web Push sync:',err)}
 }
 async function enablePixyWebPush(){
@@ -540,11 +559,9 @@ async function enablePixyWebPush(){
   const permission=await Notification.requestPermission();
   if(permission!=='granted')return toast('Разреши уведомления в настройках браузера.');
   const registration=await getPixyServiceWorker();
-  let subscription=await registration.pushManager.getSubscription();
-  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pushKeyBytes(PIXY_VAPID_PUBLIC_KEY)});
-  await savePushSubscription(subscription);
+  await ensurePixyPushSubscription(registration);
   $('enableCallNotifications')?.classList.add('hidden');
-  toast('Web Push подключён! Теперь PIXY сможет сообщать о звонках, даже когда сайт закрыт.');
+  toast('Уведомления PIXY подключены! Теперь можно получать звонки и новости, даже когда сайт закрыт.');
  }catch(err){console.error('PIXY Web Push setup:',err);toast('Не удалось подключить Web Push: '+(err?.message||'ошибка'))}
 }
 async function handlePendingCallInvite(inviteId){

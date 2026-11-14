@@ -1444,14 +1444,14 @@ async function loadWallet(){
  $('walletHistory').innerHTML=(rows||[]).map(x=>'<div><span>'+safe(x.reason.replaceAll('_',' '))+'</span><b>'+(x.amount>0?'+':'')+x.amount+' pts</b></div>').join('');
  const {data:gifts}=await sb.from('gift_transfers').select('id,gift_id,sender_id,created_at').eq('recipient_id',user.id).order('created_at',{ascending:false}).limit(20);
  const senderIds=[...new Set((gifts||[]).map(g=>g.sender_id))];const {data:senders}=senderIds.length?await sb.from('profiles').select('id,username').in('id',senderIds):{data:[]};const senderMap=Object.fromEntries((senders||[]).map(p=>[p.id,p.username]));
- $('receivedGifts').innerHTML=(gifts||[]).map(g=>'<div><span>'+safe(giftEmoji[g.gift_id]||'🎁')+' '+safe(g.gift_id)+' от @'+safe(senderMap[g.sender_id]||'user')+'</span><small>'+new Date(g.created_at).toLocaleDateString()+'</small></div>').join('')||'<p>Подарков пока нет.</p>';
+ $('receivedGifts').innerHTML=(gifts||[]).map(g=>'<div class="received-gift-item">'+giftArtMarkup(g.gift_id)+'<span>'+safe(giftEmoji[g.gift_id]||g.gift_id)+' от @'+safe(senderMap[g.sender_id]||'user')+'</span><small>'+new Date(g.created_at).toLocaleDateString()+'</small></div>').join('')||'<p>Подарков пока нет.</p>';
 }
 async function loadShop(){
  if(!sb)return;
  const [{data:bg,error:be},{data:gs,error:ge}]=await Promise.all([sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order').order('sort_order')]);
  if(be)toast(be.message);if(ge)toast(ge.message);
  $('backgroundShop').innerHTML=(bg||[]).map(x=>{const c=bgColors[x.id]||['#343047','#a78bfa'];return '<button class="shop-tile" data-background="'+safe(x.id)+'"><div class="swatch" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')"></div><small>'+safe(x.title)+'</small><b>'+(x.price_xion===0?'Бесплатно':x.price_xion+' pts')+'</b></button>'}).join('');
- $('giftShop').innerHTML=(gs||[]).map(g=>'<button type="button" class="gift-tile" data-buy-gift="'+safe(g.id)+'"><span>'+safe(g.emoji)+'</span><b>'+safe(g.title)+'</b><small>'+g.price_xion+' pts · Купить</small></button>').join('');
+ $('giftShop').innerHTML=(gs||[]).map(g=>'<button type="button" class="gift-tile gift-tile-custom" data-buy-gift="'+safe(g.id)+'">'+giftArtMarkup(g.id)+'<b>'+safe(g.title)+'</b><small>'+g.price_xion+' XION · Купить</small></button>').join('');
   $('buyGiftForSelf').checked=false;$('giftRecipient').disabled=false;$('giftRecipient').placeholder='Username получателя (например, alex.pixy)';
 }
 $('buyGiftForSelf')?.addEventListener('change',e=>{$('giftRecipient').disabled=e.target.checked;$('giftRecipient').placeholder=e.target.checked?'Подарок будет куплен для твоего профиля':'Username получателя (например, alex.pixy)'});
@@ -1460,8 +1460,8 @@ $('giftShop').addEventListener('click',async e=>{
  const forSelf=$('buyGiftForSelf').checked;let recipientId=user.id,recipientName=profile?.username||'тебя';
  if(!forSelf){const username=$('giftRecipient').value.trim().replace(/^@/,'').toLowerCase();if(!username)return toast('Введи username получателя или выбери «Купить себе».');const {data:recipient,error:findError}=await sb.from('profiles').select('id,username').eq('username',username).maybeSingle();if(findError)return toast(findError.message);if(!recipient)return toast('Пользователь @'+username+' не найден.');if(recipient.id===user.id)return toast('Для покупки себе включи переключатель «Купить себе».');recipientId=recipient.id;recipientName='@'+recipient.username}
  if(!confirm('Купить подарок '+(forSelf?'для себя':'для '+recipientName)+'? Баллы спишутся после подтверждения.'))return;
- b.disabled=true;const {data,error}=await sb.rpc('send_virtual_gift',{recipient:recipientId,gift_key:b.dataset.buyGift});b.disabled=false;if(error)return toast(error.message);
- toast(forSelf?'Подарок куплен и добавлен в твою коллекцию! Остаток: '+data+' pts':'Подарок отправлен! Остаток: '+data+' pts');loadWallet();loadShop();
+ b.disabled=true;const result=forSelf?await sb.rpc('buy_gift_for_self',{gift_key:b.dataset.buyGift}):await sb.rpc('send_virtual_gift',{recipient:recipientId,gift_key:b.dataset.buyGift});b.disabled=false;if(result.error)return toast(result.error.message);
+ toast(forSelf?'Подарок куплен и добавлен в твою коллекцию! Остаток: '+result.data+' XION':'Подарок отправлен! Остаток: '+result.data+' XION');await Promise.all([loadWallet(),loadShop(),loadMyGifts()]);
 });
 $('backgroundShop').addEventListener('click',async e=>{
  const b=e.target.closest('[data-background]');if(!b||!user)return;

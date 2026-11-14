@@ -1612,13 +1612,21 @@ $('moderationResults').addEventListener('click',async e=>{
 if(sb){
  // Bootstrap the current session once. Auth callbacks must stay synchronous:
  // awaiting a Supabase query inside onAuthStateChange can deadlock the auth lock.
- sb.auth.getSession().then(async({data,error})=>{
+ withTimeout(sb.auth.getSession(),10000,'Supabase не ответил при проверке сессии за 10 секунд.')
+ .then(async({data,error})=>{
   if(error)throw error;
-  if(data?.session){user=data.session.user;await loadProfile();showApp()}
-  else if(!user)setAuth('login');
+  if(data?.session){
+   user=data.session.user;
+   await loadProfile();
+   if(user?.id===data.session.user.id)showApp();
+  }else if(!user)setAuth('login');
  }).catch(error=>{
   console.error('PIXY session bootstrap:',error);
-  if(!user){setAuth('login');authStatus('Не удалось восстановить сессию. Попробуй войти ещё раз.',true)}
+  // Never leave the visitor on a blank page if session restoration hangs.
+  if(!user){
+   setAuth('login');
+   authStatus(error?.message||'Не удалось восстановить сессию. Попробуй войти ещё раз.',true);
+  }
  });
  sb.auth.onAuthStateChange((event,session)=>{
   if(event==='INITIAL_SESSION')return;

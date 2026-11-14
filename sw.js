@@ -11,6 +11,8 @@ self.addEventListener('push',event=>{
    tag:'pixy-call-'+inviteId,
    renotify:true,
    requireInteraction:true,
+   silent:false,
+   vibrate:[500,250,500,250,500,250,500,250,500,250,500,250,500,250,500,250,500,250,500],
    data:{inviteId,url:data.url||('/?incomingCall='+encodeURIComponent(inviteId))}
   });
  })());

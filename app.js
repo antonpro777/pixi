@@ -1526,24 +1526,21 @@ async function loadWallet(){
 }
 let neftPriceRefreshTimer=null;
 function startNeftPriceRefresh(){if(neftPriceRefreshTimer)return;neftPriceRefreshTimer=setInterval(()=>{if(!user||document.hidden)return;if(!$('view-shop').classList.contains('hidden'))loadShop();if(!$('view-my-gifts').classList.contains('hidden'))loadMyGifts()},60000)}
+let shopLoadPromise=null;
 async function loadShop(){
  if(!sb||!user)return;
+ if(shopLoadPromise)return shopLoadPromise;
  const ownerId=user.id;
+ shopLoadPromise=(async()=>{
  try{
-  // Restore a missing access session before querying the store. A failed
-  // refresh is reported in the store instead of redirecting to registration.
-  const current=await sb.auth.getSession();
-  if(current.error)throw current.error;
-  if(!current.data?.session){
-   const refreshed=await sb.auth.refreshSession();
-   if(refreshed.error)throw refreshed.error;
-   if(!refreshed.data?.session)throw new Error('Сессия не восстановлена. Обнови страницу и войди снова.');
-  }
-  const [{data:bg,error:be},{data:gs,error:ge}]=await Promise.all([
+  // Do not manually refresh the auth session from a view loader.
+  // Supabase handles token refresh; forcing refresh here can contend with
+  // other requests and auth callbacks while the user is navigating.
+  const [{data:bg,error:be},{data:gs,error:ge}]=await withTimeout(Promise.all([
    sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),
    sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order,kind,rarity,design_number,background_key,price_growth_per_hour,price_started_at,supply_limit').eq('available',true).order('sort_order')
-  ]);
-  if(user?.id!==ownerId)return;
+  ]),15000,'Магазин не ответил за 15 секунд. Попробуй ещё раз.');
+  if(user?.id!==ownerId||$('view-shop')?.classList.contains('hidden'))return;
   if(be)throw be;
   if(ge)throw ge;
   $('backgroundShop').innerHTML=(bg||[]).map(x=>{const c=bgColors[x.id]||['#343047','#a78bfa'];return '<button class="shop-tile" data-background="'+safe(x.id)+'"><div class="swatch" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')"></div><small>'+safe(x.title)+'</small><b>'+(x.price_xion===0?'Бесплатно':x.price_xion+' XION')+'</b></button>'}).join('');
@@ -1558,7 +1555,11 @@ async function loadShop(){
  }catch(error){
   console.error('PIXY shop load:',error);
   if(user?.id===ownerId)toast('Не удалось загрузить магазин: '+(error?.message||'ошибка соединения'));
+ }finally{
+  shopLoadPromise=null;
  }
+ })();
+ return shopLoadPromise;
 }
 $('buyGiftForSelf')?.addEventListener('change',e=>{$('giftRecipient').disabled=e.target.checked;$('giftRecipient').placeholder=e.target.checked?'Подарок будет куплен для твоего профиля':'Username получателя (например, alex.pixy)'});
 $('giftShop').addEventListener('click',async e=>{

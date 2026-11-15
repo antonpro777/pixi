@@ -1552,6 +1552,7 @@ async function loadShop(){
    return '<button type="button" class="gift-tile neft-tile '+(limited?'neft-one-of-one':'')+'" data-buy-gift="'+safe(g.id)+'" data-neft-number="'+number+'" data-base-price="'+Number(g.price_xion||0)+'" data-growth="'+growth+'" data-started-at="'+safe(g.price_started_at||'')+'" style="'+neftCardStyle(number)+'">'+giftArtMarkup(g.id)+'<span class="neft-edition">'+(limited?'ONE OF ONE · #0001':'NEFT · #'+String(number).padStart(2,'0'))+'</span><b>'+safe(g.title)+'</b><small class="neft-price">'+price.toLocaleString('ru-RU')+' XION</small><small class="neft-growth">'+(growth?'+'+growth+' XION / час · '+safe(g.rarity):'Единственный экземпляр · цена фиксирована')+'</small></button>';
   }).join('');
   $('giftShop').innerHTML='<div class="gift-shop-section"><div class="gift-shop-section-head"><b>Классические подарки</b><small>Обновлённые цены</small></div><div class="gift-grid-inner">'+classicHtml+'</div></div><div class="gift-shop-section neft-shop-section"><div class="gift-shop-section-head"><b>NEFT · цифровая коллекция</b><small>50 уникальных дизайнов · стоимость растёт каждый час</small></div><div class="gift-grid-inner neft-grid-inner">'+neftHtml+'</div></div>';
+  refreshGiftShopPrices();
  }catch(error){
   console.error('PIXY shop load:',error);
   if(user?.id===ownerId)toast('Не удалось загрузить магазин: '+(error?.message||'ошибка соединения'));

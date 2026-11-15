@@ -1611,26 +1611,13 @@ $('moderationResults').addEventListener('click',async e=>{
 });
 
 if(sb){
- // Bootstrap the current session once. Auth callbacks must stay synchronous:
- // awaiting a Supabase query inside onAuthStateChange can deadlock the auth lock.
- withTimeout(sb.auth.getSession(),10000,'Supabase не ответил при проверке сессии за 10 секунд.')
- .then(async({data,error})=>{
-  if(error)throw error;
-  if(data?.session){
-   user=data.session.user;
-   await loadProfile();
-   if(user?.id===data.session.user.id)showApp();
-  }else if(!user)setAuth('login');
- }).catch(error=>{
-  console.error('PIXY session bootstrap:',error);
-  // Never leave the visitor on a blank page if session restoration hangs.
-  if(!user){
-   setAuth('login');
-   authStatus(error?.message||'Не удалось восстановить сессию. Попробуй войти ещё раз.',true);
-  }
- });
+ // Supabase emits INITIAL_SESSION after restoring the stored session.
+ // Avoid a short getSession timeout that can eject a user on a slow connection.
  sb.auth.onAuthStateChange((event,session)=>{
-  if(event==='INITIAL_SESSION')return;
+  if(event==='INITIAL_SESSION'&&!session){
+   if(!user)setAuth('login');
+   return;
+  }
   if(event==='PASSWORD_RECOVERY'){setTimeout(()=>setAuth('newPassword'),0);return}
   if(session){
    if(!user||user.id!==session.user.id){

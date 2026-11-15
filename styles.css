@@ -1175,3 +1175,20 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
 .received-gift-item>span{display:grid;gap:4px;flex:1}
 .received-gift-item>span small{display:inline-flex;align-items:center;gap:4px;color:#bca6e8;font-size:10px}
 @media(max-width:600px){.wallet-xion-emblem{width:104px;height:104px}.xion-icon-large{width:78px;height:78px}.shop-xion-balance{padding:12px 14px}}
+
+/* PIXY custom three-swipe human check */
+.pixy-human-gate{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(5,4,10,.82);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px)}
+.pixy-human-gate.hidden{display:none!important}
+.pixy-human-card{width:min(440px,100%);padding:30px 24px 24px;border:1px solid #a987e955;border-radius:25px;background:linear-gradient(155deg,#211a30,#100e18 72%);box-shadow:0 28px 100px #000b;text-align:center;color:#f5efff}
+.pixy-human-mark{width:54px;height:54px;margin:0 auto 14px;display:grid;place-items:center;border-radius:18px;background:linear-gradient(145deg,#a77aff,#633bc0);font-size:28px;box-shadow:0 0 32px #9561ff55}
+.pixy-human-card h2{margin:10px 0;font:800 24px Manrope,sans-serif;letter-spacing:-.7px}
+.pixy-human-card p{margin:0 auto 22px;max-width:340px;color:#b9aecb;font-size:13px;line-height:1.55}
+.pixy-human-progress{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;color:#cbb7f5;font-size:11px;font-weight:800}
+.pixy-human-progress b{color:#f0e8ff;text-align:right}
+.pixy-human-track{height:62px;position:relative;display:flex;align-items:center;padding:4px;border:1px solid #a987e955;border-radius:17px;background:#0b0911;overflow:hidden;touch-action:pan-y;user-select:none}
+.pixy-human-rail{position:absolute;inset:0;background:linear-gradient(90deg,#9b69ff18,#9b69ff05)}
+.pixy-human-handle{position:relative;z-index:2;width:52px;height:52px;flex:0 0 52px;border:1px solid #d4baff;border-radius:13px;background:linear-gradient(145deg,#a87aff,#6840c5);color:white;font-size:25px;font-weight:900;cursor:grab;touch-action:none;box-shadow:0 5px 18px #8855ff55}
+.pixy-human-handle:active{cursor:grabbing}
+.pixy-human-track-label{position:absolute;inset:0;display:grid;place-items:center;color:#827494;font-size:10px;letter-spacing:3px;font-weight:900;pointer-events:none}
+.pixy-human-card>small{display:block;margin-top:16px;color:#8f839f;font-size:10px}
+@media(max-width:480px){.pixy-human-card{padding:25px 17px 20px}.pixy-human-card h2{font-size:21px}}

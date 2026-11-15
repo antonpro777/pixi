@@ -1438,7 +1438,22 @@ musicDropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.
 musicFileInput.addEventListener('change',paintMusicFileQueue);
 for(const eventName of ['dragenter','dragover'])musicDropZone.addEventListener(eventName,e=>{e.preventDefault();e.stopPropagation();musicDropZone.classList.add('drag-over')});
 for(const eventName of ['dragleave','dragend'])musicDropZone.addEventListener(eventName,e=>{e.preventDefault();e.stopPropagation();if(!musicDropZone.contains(e.relatedTarget))musicDropZone.classList.remove('drag-over')});
-musicDropZone.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();musicDropZone.classList.remove('drag-over');const dropped=Array.from(e.dataTransfer?.files||[]).filter(f=>f.type.startsWith('audio/')||/\.(mp3|wav|m4a|ogg|oga|webm|mp4)$/i.test(f.name));if(!dropped.length)return toast('В этой папке не найдено аудиофайлов.');const transfer=new DataTransfer();[...Array.from(musicFileInput.files||[]),...dropped].forEach(f=>transfer.items.add(f));musicFileInput.files=transfer.files;paintMusicFileQueue()});
+const isAudioFile=f=>!!f&&(f.type.startsWith('audio/')||/\.(mp3|wav|m4a|ogg|oga|webm|mp4)$/i.test(f.name));
+async function readDroppedEntry(entry){
+ if(entry.isFile)return new Promise(resolve=>entry.file(file=>resolve([file]),()=>resolve([])));
+ if(!entry.isDirectory)return [];
+ const reader=entry.createReader(),all=[];
+ while(true){const batch=await new Promise(resolve=>reader.readEntries(resolve,()=>resolve([])));if(!batch.length)break;for(const child of batch)all.push(...await readDroppedEntry(child))}
+ return all;
+}
+async function collectDroppedAudio(dataTransfer){
+ const items=Array.from(dataTransfer?.items||[]).filter(item=>item.kind==='file'),files=[];
+ for(const item of items){const entry=item.webkitGetAsEntry?.();if(entry)files.push(...await readDroppedEntry(entry));else{const file=item.getAsFile?.();if(file)files.push(file)}}
+ return files.filter(isAudioFile);
+}
+document.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault()},true);
+document.addEventListener('drop',e=>{if(e.dataTransfer?.types?.includes('Files')){e.preventDefault();if(!musicDropZone.contains(e.target))toast('Перетащи музыку прямо в область «Перетащи сюда сразу всю музыку».')}},false);
+musicDropZone.addEventListener('drop',async e=>{e.preventDefault();e.stopPropagation();musicDropZone.classList.remove('drag-over');const dropped=await collectDroppedAudio(e.dataTransfer);if(!dropped.length)return toast('Аудиофайлы не найдены. Можно перетащить сразу файлы или целую папку.');const transfer=new DataTransfer();[...Array.from(musicFileInput.files||[]),...dropped].forEach(f=>transfer.items.add(f));musicFileInput.files=transfer.files;paintMusicFileQueue();musicUploadStatus.textContent='В очереди '+transfer.files.length+' аудиофайлов. Нажми «Загрузить выбранную музыку».'});
 $('musicUploadBtn').onclick=async()=>{
  if(profile?.username!=='anpro777')return toast('Нет доступа.');
  const files=Array.from(musicFileInput.files||[]);

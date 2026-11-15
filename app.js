@@ -1433,6 +1433,7 @@ function paintMusicFileQueue(){
  $('musicUploadBtn').disabled=!files.length;
 }
 musicDropZone.addEventListener('click',e=>{if(e.target.closest('button'))return;musicFileInput.click()});
+$('musicBrowseBtn').addEventListener('click',e=>{e.stopPropagation();musicFileInput.click()});
 musicDropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();musicFileInput.click()}});
 musicFileInput.addEventListener('change',paintMusicFileQueue);
 for(const eventName of ['dragenter','dragover'])musicDropZone.addEventListener(eventName,e=>{e.preventDefault();e.stopPropagation();musicDropZone.classList.add('drag-over')});

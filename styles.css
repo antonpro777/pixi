@@ -1138,3 +1138,22 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
     object-fit:contain;
   }
 }
+
+
+/* PIXY shop: remove the animated white sheen and inset white frame from NEFT
+   cards. Keep a calm border while scrolling and tapping through the gallery. */
+.neft-tile::before,
+.neft-tile::after{
+  content:none!important;
+  display:none!important;
+  animation:none!important;
+}
+.neft-tile{
+  border-color:hsl(var(--neft-hue) 65% 70% / .22);
+  box-shadow:0 8px 22px #0002;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.neft-tile:focus-visible{
+  outline:2px solid #b99aff;
+  outline-offset:3px;
+}

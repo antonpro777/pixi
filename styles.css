@@ -1157,3 +1157,21 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
   outline:2px solid #b99aff;
   outline-offset:3px;
 }
+
+/* XION currency identity */
+.xion-icon{width:1.05em;height:1.05em;display:inline-block;vertical-align:-.18em;flex:0 0 auto;filter:drop-shadow(0 0 5px #a56cff88)}
+.xion-icon-large{width:94px;height:94px}
+.xion-amount{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.wallet-card-xion{overflow:hidden;background:radial-gradient(ellipse at 50% 0%,#8b4cff2a,transparent 46%),linear-gradient(145deg,#1c172a,#111019)}
+.wallet-balance-xion{display:grid;justify-items:center;gap:9px;margin:20px 0 14px;text-align:center}
+.wallet-balance-xion>strong{font:800 clamp(38px,7vw,58px) Manrope,sans-serif;letter-spacing:-1.8px}
+.wallet-xion-emblem{width:126px;height:126px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,#8e4bff30,#28144722 65%,transparent 66%);box-shadow:0 0 45px #8d50ff30}
+.wallet-history-title{margin:22px 0 10px;font:800 15px Manrope;color:#e8dcff}
+.wallet-card-xion .wallet-note{text-align:center;color:#a99bbd;font-size:11px}
+.shop-xion-balance{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:14px 0 22px;padding:15px 18px;border:1px solid #9d73ff42;border-radius:16px;background:linear-gradient(110deg,#241a39,#171321);box-shadow:0 12px 30px #0002}
+.shop-xion-balance>span{font-size:10px;letter-spacing:1.4px;color:#b8a6d6;font-weight:800}
+.shop-xion-balance>b{display:flex;align-items:center;gap:8px;font:800 21px Manrope;color:#f3eaff}
+#giftShop .classic-price,#giftShop .neft-price{display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.received-gift-item>span{display:grid;gap:4px;flex:1}
+.received-gift-item>span small{display:inline-flex;align-items:center;gap:4px;color:#bca6e8;font-size:10px}
+@media(max-width:600px){.wallet-xion-emblem{width:104px;height:104px}.xion-icon-large{width:78px;height:78px}.shop-xion-balance{padding:12px 14px}}

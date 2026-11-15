@@ -14,7 +14,43 @@ const $=id=>document.getElementById(id);let user=null,profile=null,pendingEmail=
 const toast=(m)=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)};
 const authStatus=(m,err=false)=>{$('authStatus').textContent=m;$('authStatus').style.color=err?'#ff9dba':'#9debd6'};
 const setAuth=(mode)=>{authMode=mode;['loginForm','signupForm','verifyForm','resetForm','newPasswordForm'].forEach(id=>$(id).classList.add('hidden'));$(mode+'Form').classList.remove('hidden');$('auth').classList.remove('hidden');$('app').classList.add('hidden');$('authStatus').textContent='';$('authSwitch').classList.toggle('hidden',mode==='verify'||mode==='reset'||mode==='newPassword');$('authTitle').textContent=mode==='signup'?'Создай свой мир.':mode==='verify'?'Проверь почту.':mode==='reset'?'Восстановим доступ.':mode==='newPassword'?'Новый пароль.':'С возвращением.';$('authSub').textContent=mode==='signup'?'Присоединяйся к PIXY.':mode==='verify'?'Мы отправили тебе код подтверждения.':mode==='reset'?'Отправим код для восстановления.':mode==='newPassword'?'Придумай новый надёжный пароль.':'Войди в свой мир PIXY.';$('authSwitch').innerHTML=mode==='signup'?'Уже есть аккаунт? <button id="showLogin">Войти</button>':mode==='login'?'Впервые здесь? <button id="showSignup">Создать аккаунт</button>':'<button id="backLogin">← Вернуться ко входу</button>';if($('showLogin'))$('showLogin').onclick=()=>setAuth('login');if($('showSignup'))$('showSignup').onclick=()=>setAuth('signup');if($('backLogin'))$('backLogin').onclick=()=>setAuth('login')};
-function showApp(){$('auth').classList.add('hidden');$('app').classList.remove('hidden');initIncomingCallListeners();syncExistingPushSubscription();startNeftPriceRefresh();initializeActivitySeen();setupActivityRealtime();$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent='';$('profileAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet();loadNotifications();refreshChatBadge();loadPixySettings();checkPixyAnnouncements();startPixyBackgroundPolling();setTimeout(lockPixyIfNeeded,0);}
+function pixyHumanGateKey(){return 'pixy-human-check-v1:'+String(user?.id||'guest')}
+function showPixyHumanGate(){
+ if(!user||localStorage.getItem(pixyHumanGateKey())==='passed')return;
+ const overlay=$('pixyHumanGate');if(!overlay)return;
+ nav('profile');
+ overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false');
+ const track=$('pixyHumanTrack'),handle=$('pixyHumanHandle'),hint=$('pixyHumanHint'),count=$('pixyHumanCount');
+ if(!track||!handle)return;
+ let step=0,dragging=false,startX=0,handleStart=0,offset=0;
+ const directions=['right','left','left'];
+ const reset=()=>{handle.style.transform='translateX(0px)';handle.style.transition='transform .22s ease';};
+ const setStep=()=>{hint.textContent=step===0?'Проведи ползунок вправо': 'Проведи ползунок влево';count.textContent=(step+1)+' / 3';reset()};
+ setStep();
+ handle.onpointerdown=e=>{
+  dragging=true;startX=e.clientX;handleStart=offset;handle.style.transition='none';
+  handle.setPointerCapture?.(e.pointerId);e.preventDefault();
+ };
+ handle.onpointermove=e=>{
+  if(!dragging)return;
+  const max=Math.max(0,track.clientWidth-handle.offsetWidth-8);
+  const dir=directions[step];
+  offset=Math.max(0,Math.min(max,handleStart+(e.clientX-startX)));
+  handle.style.transform='translateX('+offset+'px)';
+  const reached=dir==='right'?offset>=max-4:offset<=4;
+  if(reached){
+   dragging=false;step++;offset=0;
+   if(step>=3){
+    localStorage.setItem(pixyHumanGateKey(),'passed');
+    overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true');
+    toast('Проверка пройдена. Добро пожаловать в PIXY!');
+   }else setStep();
+  }
+ };
+ const stop=e=>{if(dragging){dragging=false;offset=0;reset()}};
+ handle.onpointerup=stop;handle.onpointercancel=stop;
+}
+function showApp(){$('auth').classList.add('hidden');$('app').classList.remove('hidden');initIncomingCallListeners();syncExistingPushSubscription();startNeftPriceRefresh();initializeActivitySeen();setupActivityRealtime();$('sideName').textContent=profile?.display_name||user?.email?.split('@')[0]||'Гость PIXY';$('sideHandle').textContent=profile?.username?'@'+profile.username:'@welcome';$('sideAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();$('profileAvatar').textContent=profile?.avatar_url?'':(profile?.display_name||'P').slice(0,1).toUpperCase();if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('profileAvatar').style.backgroundPosition='center'}else{$('profileAvatar').style.backgroundImage='';}$('profileName').textContent=profile?.display_name||'Твой профиль';$('profileHandleText').textContent=profile?.username?'@'+profile.username:'@username';$('profileVerified').classList.toggle('hidden',!profile?.is_verified);$('moderationNav').classList.toggle('hidden',profile?.username!=='anpro777');$('profileModerationBtn').classList.toggle('hidden',profile?.username!=='anpro777');loadModerationStatus();$('profileBio').textContent=profile?.bio||'Расскажи немного о себе — пусть тебя узнают.';if(profile?.avatar_url){$('profileAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('profileAvatar').style.backgroundSize='cover';$('sideAvatar').style.backgroundImage='url('+profile.avatar_url+')';$('sideAvatar').style.backgroundSize='cover';$('sideAvatar').textContent='';$('profileAvatar').textContent=''}if(profile?.profile_background&&bgColors[profile.profile_background]){const c=bgColors[profile.profile_background];document.querySelector('.profile-cover').style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')'}loadFeed();loadStories();loadSocialStats();loadWallet();loadNotifications();refreshChatBadge();loadPixySettings();checkPixyAnnouncements();startPixyBackgroundPolling();setTimeout(lockPixyIfNeeded,0);setTimeout(showPixyHumanGate,350);}
 function nav(view){
  $('profileMoreMenu')?.classList.add('hidden');$('profileMoreBtn')?.setAttribute('aria-expanded','false');
  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));

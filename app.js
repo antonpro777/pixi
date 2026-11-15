@@ -24,8 +24,9 @@ function showPixyHumanGate(){
  if(!track||!handle)return;
  let step=0,dragging=false,startX=0,handleStart=0,offset=0;
  const directions=['right','left','left'];
- const reset=()=>{handle.style.transform='translateX(0px)';handle.style.transition='transform .22s ease';};
- const setStep=()=>{hint.textContent=step===0?'Проведи ползунок вправо': 'Проведи ползунок влево';count.textContent=(step+1)+' / 3';reset()};
+ const maxOffset=()=>Math.max(0,track.clientWidth-handle.offsetWidth-8);
+ const reset=()=>{offset=directions[step]==='left'?maxOffset():0;handle.style.transform='translateX('+offset+'px)';handle.style.transition='transform .22s ease';};
+ const setStep=()=>{hint.textContent=step===0?'Проведи ползунок вправо':'Проведи ползунок влево';count.textContent=(step+1)+' / 3';reset()};
  setStep();
  handle.onpointerdown=e=>{
   dragging=true;startX=e.clientX;handleStart=offset;handle.style.transition='none';

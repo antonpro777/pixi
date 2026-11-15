@@ -1426,19 +1426,28 @@ $('feed').addEventListener('pointerup',e=>{
 });
 $('feed').addEventListener('click',async e=>{const b=e.target.closest('[data-carousel]');if(!b)return;if(b.dataset.swiped==='1'){delete b.dataset.swiped;return}const a=b.parentElement.querySelector('[data-carousel-music]');if(!a)return;a.volume=Math.max(0,Math.min(1,Number(b.dataset.musicVolume??.7)));const overlay=b.querySelector('[data-carousel-toggle]');if(a.paused){try{await a.play();b.classList.add('music-playing');if(overlay)overlay.textContent='Нажмите, чтобы остановить'}catch(_){}}else{a.pause();b.classList.remove('music-playing');if(overlay)overlay.textContent='Нажмите, чтобы включить'}});
 const musicDropZone=$('musicDropZone'),musicFileInput=$('musicTrackFile'),musicUploadStatus=$('musicUploadStatus');
+let selectedMusicFiles=[];
 function paintMusicFileQueue(){
- const files=Array.from(musicFileInput.files||[]);
+ const files=selectedMusicFiles;
  $('musicDropTitle').textContent=files.length?'Выбрано файлов: '+files.length:'Перетащи сюда сразу всю музыку';
  $('musicDropHint').textContent=files.length?files.slice(0,5).map(f=>f.name).join(' · ')+(files.length>5?' · и ещё '+(files.length-5):''):'MP3, WAV, M4A, OGG и другие поддерживаемые аудиофайлы';
  $('musicUploadBtn').disabled=!files.length;
 }
+function addMusicFiles(files){
+ const incoming=Array.from(files||[]).filter(f=>f&&(f.type.startsWith('audio/')||/\.(mp3|wav|m4a|ogg|oga|webm|mp4)$/i.test(f.name)));
+ if(!incoming.length)return 0;
+ const keys=new Set(selectedMusicFiles.map(f=>f.name+'|'+f.size+'|'+f.lastModified));
+ for(const file of incoming){const key=file.name+'|'+file.size+'|'+file.lastModified;if(!keys.has(key)){selectedMusicFiles.push(file);keys.add(key)}}
+ paintMusicFileQueue();
+ musicUploadStatus.textContent='В очереди '+selectedMusicFiles.length+' аудиофайлов.';
+ return incoming.length;
+}
 musicDropZone.addEventListener('click',e=>{if(e.target.closest('button'))return;musicFileInput.click()});
 $('musicBrowseBtn').addEventListener('click',e=>{e.stopPropagation();musicFileInput.click()});
 musicDropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();musicFileInput.click()}});
-musicFileInput.addEventListener('change',paintMusicFileQueue);
+musicFileInput.addEventListener('change',()=>{addMusicFiles(musicFileInput.files);musicFileInput.value=''});
 for(const eventName of ['dragenter','dragover'])musicDropZone.addEventListener(eventName,e=>{e.preventDefault();e.stopPropagation();musicDropZone.classList.add('drag-over')});
 for(const eventName of ['dragleave','dragend'])musicDropZone.addEventListener(eventName,e=>{e.preventDefault();e.stopPropagation();if(!musicDropZone.contains(e.relatedTarget))musicDropZone.classList.remove('drag-over')});
-const isAudioFile=f=>!!f&&(f.type.startsWith('audio/')||/\.(mp3|wav|m4a|ogg|oga|webm|mp4)$/i.test(f.name));
 async function readDroppedEntry(entry){
  if(entry.isFile)return new Promise(resolve=>entry.file(file=>resolve([file]),()=>resolve([])));
  if(!entry.isDirectory)return [];
@@ -1449,17 +1458,24 @@ async function readDroppedEntry(entry){
 async function collectDroppedAudio(dataTransfer){
  const items=Array.from(dataTransfer?.items||[]).filter(item=>item.kind==='file'),files=[];
  for(const item of items){const entry=item.webkitGetAsEntry?.();if(entry)files.push(...await readDroppedEntry(entry));else{const file=item.getAsFile?.();if(file)files.push(file)}}
- return files.filter(isAudioFile);
+ if(!files.length)files.push(...Array.from(dataTransfer?.files||[]));
+ return files.filter(f=>f.type.startsWith('audio/')||/\.(mp3|wav|m4a|ogg|oga|webm|mp4)$/i.test(f.name));
 }
 document.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault()},true);
-document.addEventListener('drop',e=>{if(e.dataTransfer?.types?.includes('Files')){e.preventDefault();if(!musicDropZone.contains(e.target))toast('Перетащи музыку прямо в область «Перетащи сюда сразу всю музыку».')}},false);
-musicDropZone.addEventListener('drop',async e=>{e.preventDefault();e.stopPropagation();musicDropZone.classList.remove('drag-over');const dropped=await collectDroppedAudio(e.dataTransfer);if(!dropped.length)return toast('Аудиофайлы не найдены. Можно перетащить сразу файлы или целую папку.');const transfer=new DataTransfer();[...Array.from(musicFileInput.files||[]),...dropped].forEach(f=>transfer.items.add(f));musicFileInput.files=transfer.files;paintMusicFileQueue();musicUploadStatus.textContent='В очереди '+transfer.files.length+' аудиофайлов. Нажми «Загрузить выбранную музыку».'});
+document.addEventListener('drop',e=>{if(e.dataTransfer?.types?.includes('Files')){e.preventDefault();if(!musicDropZone.contains(e.target))toast('Перетащи музыку прямо в область загрузки PIXY.')}},false);
+musicDropZone.addEventListener('drop',async e=>{
+ e.preventDefault();e.stopPropagation();musicDropZone.classList.remove('drag-over');
+ const dropped=await collectDroppedAudio(e.dataTransfer);
+ if(!dropped.length)return toast('Аудиофайлы не найдены. Перетащи файлы прямо из папки компьютера.');
+ const before=selectedMusicFiles.length;addMusicFiles(dropped);
+ musicUploadStatus.textContent='Добавлено в очередь: '+(selectedMusicFiles.length-before)+'. Всего: '+selectedMusicFiles.length+' файлов.';
+});
 $('musicUploadBtn').onclick=async()=>{
  if(profile?.username!=='anpro777')return toast('Нет доступа.');
- const files=Array.from(musicFileInput.files||[]);
+ const files=[...selectedMusicFiles];
  if(!files.length)return toast('Перетащи аудиофайлы в область загрузки.');
  const allowed=new Set(['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/webm','audio/ogg','audio/mp4','audio/x-m4a']);
- const invalid=files.filter(f=>!f.type.startsWith('audio/')||!allowed.has(f.type)||f.size>50*1024*1024);
+ const invalid=files.filter(f=>!(f.type.startsWith('audio/')||/\.(mp3|wav|m4a|ogg|oga|webm|mp4)$/i.test(f.name))||(f.type&&!allowed.has(f.type))||f.size>50*1024*1024);
  if(invalid.length)return toast('Проверь формат и размер: до 50 МБ на файл. Ошибочных файлов: '+invalid.length);
  const b=$('musicUploadBtn');b.disabled=true;musicFileInput.disabled=true;musicDropZone.classList.add('uploading');
  let added=0,failed=[];
@@ -1471,14 +1487,14 @@ $('musicUploadBtn').onclick=async()=>{
    const ext=(f.name.split('.').pop()||'mp3').toLowerCase().replace(/[^a-z0-9]/g,'')||'mp3';
    const path=user.id+'/music/'+crypto.randomUUID()+'.'+ext;
    try{
-    const {error:upErr}=await sb.storage.from('pixy-media').upload(path,f,{contentType:f.type});if(upErr)throw upErr;
+    const {error:upErr}=await sb.storage.from('pixy-media').upload(path,f,{contentType:f.type||'audio/mpeg'});if(upErr)throw upErr;
     const url=sb.storage.from('pixy-media').getPublicUrl(path).data.publicUrl,objectUrl=URL.createObjectURL(f);
     const duration=await new Promise(resolve=>{const audio=new Audio();let done=false;const finish=value=>{if(done)return;done=true;URL.revokeObjectURL(objectUrl);resolve(value)};audio.onloadedmetadata=()=>finish(Number.isFinite(audio.duration)?Math.round(audio.duration):null);audio.onerror=()=>finish(null);setTimeout(()=>finish(null),8000);audio.src=objectUrl});
     const {error:dbErr}=await sb.from('music_tracks').insert({title,artist:'PIXY Music',audio_url:url,storage_path:path,duration_seconds:duration,created_by:user.id});if(dbErr)throw dbErr;
     added++;
    }catch(error){failed.push(f.name+': '+(error.message||'ошибка загрузки'))}
   }
-  musicFileInput.value='';paintMusicFileQueue();loadMusicLibrary();
+  selectedMusicFiles=[];paintMusicFileQueue();loadMusicLibrary();
   musicUploadStatus.textContent=failed.length?'Готово: '+added+' добавлено, '+failed.length+' с ошибками.':'Готово! Добавлено треков: '+added+'.';
   toast('Добавлено: '+added+(failed.length?'. Ошибок: '+failed.length:' треков.'));
   if(failed.length)console.warn('PIXY music upload errors',failed);

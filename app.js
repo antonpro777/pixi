@@ -1477,6 +1477,7 @@ $('searchResults').addEventListener('click',async e=>{
  const choices=(gifts||[]).map(g=>g.id+' — '+g.emoji+' '+g.title+' ('+g.price_xion+' pts + 2 XION комиссия)').join('\\n');
  const key=prompt('Какой подарок отправить? Введи ID из списка:\\n'+choices);if(!key)return;
  const gift=(gifts||[]).find(g=>g.id===key.trim());if(!gift)return toast('Неизвестный подарок.');
+ if(!confirm('Отправить '+gift.title+'? Комиссия PIXY — 2 XION. Итого: '+gift.price_xion+' + 2 XION.'))return;
  const {data,error:sendError}=await sb.rpc('send_virtual_gift',{recipient:b.dataset.sendGift,gift_key:gift.id});
  if(sendError)return toast(sendError.message);
  toast('Подарок отправлен! Остаток: '+data+' pts');loadWallet();

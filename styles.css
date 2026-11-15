@@ -1105,3 +1105,36 @@ button:not(:disabled),a,.nav-item,.sidebar-link,.story,.search-person,.notificat
 #publicProfileModal .public-profile-call-icon:focus-visible{
  outline:2px solid #c7a9ff;outline-offset:3px;
 }
+
+
+/* PIXY responsive guard: keep the tablet / narrow-window layout from
+   squeezing the main column or clipping the hero artwork. */
+@media (min-width:761px) and (max-width:1024px){
+  .app{
+    grid-template-columns:190px minmax(0,1fr);
+    gap:18px;
+    padding-left:18px;
+    padding-right:18px;
+  }
+  .sidebar{min-width:0;padding-right:9px}
+  .nav-item{gap:9px;padding-left:9px;padding-right:9px}
+  .nav-item span{font-size:11px}
+  .main,.view,.feed,.post-card{min-width:0;max-width:100%}
+  .main{overflow-x:clip}
+  .welcome-banner{min-height:230px;padding:24px;overflow:hidden}
+  .welcome-copy{max-width:56%;min-width:0}
+  .welcome-copy h2{font-size:clamp(24px,3.2vw,30px)}
+  .welcome-copy p{max-width:240px}
+  .banner-art{
+    width:clamp(130px,17vw,175px);
+    height:clamp(130px,17vw,175px);
+    right:2%;
+    opacity:.72;
+  }
+  .post-image,.post-carousel{max-width:100%;overflow:hidden}
+  .post-image img,.post-image video,.post-carousel img,
+  .post-video-wrap video,.public-profile-post img,.public-profile-post video{
+    max-width:100%;
+    object-fit:contain;
+  }
+}

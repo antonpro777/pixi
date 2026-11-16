@@ -1676,7 +1676,8 @@ async function loadShop(){
   // Do not manually refresh the auth session from a view loader.
   // Supabase handles token refresh; forcing refresh here can contend with
   // other requests and auth callbacks while the user is navigating.
-  const marketResult=await sb.rpc('refresh_gift_market');if(marketResult.error)throw marketResult.error;\n  const [{data:bg,error:be},{data:gs,error:ge}]=await withTimeout(Promise.all([
+  const marketResult=await sb.rpc('refresh_gift_market');if(marketResult.error)throw marketResult.error;
+  const [{data:bg,error:be},{data:gs,error:ge}]=await withTimeout(Promise.all([
    sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),
    sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order,kind,rarity,design_number,background_key,market_direction,market_until,price_growth_per_hour,price_growth_amount,price_growth_interval_minutes,price_started_at,supply_limit').eq('available',true).order('sort_order')
   ]),15000,'Магазин не ответил за 15 секунд. Попробуй ещё раз.');

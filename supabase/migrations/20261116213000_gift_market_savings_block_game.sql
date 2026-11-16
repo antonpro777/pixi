@@ -319,3 +319,10 @@ grant execute on function public.deposit_xion_savings(integer) to authenticated;
 grant execute on function public.withdraw_xion_savings() to authenticated;
 grant execute on function public.start_pixy_block_game() to authenticated;
 grant execute on function public.finish_pixy_block_game(uuid,integer) to authenticated;
+
+grant select on public.xion_savings to authenticated;
+revoke all on function public.refresh_gift_market() from public, anon;
+revoke all on function public.deposit_xion_savings(integer) from public, anon;
+revoke all on function public.withdraw_xion_savings() from public, anon;
+revoke all on function public.start_pixy_block_game() from public, anon;
+revoke all on function public.finish_pixy_block_game(uuid,integer) from public, anon;

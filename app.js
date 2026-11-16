@@ -346,13 +346,13 @@ function renderBlockGame(){
  const board=$('blockGameBoard');if(!board)return;
  board.innerHTML=blockGame.board.map((row,y)=>row.map((v,x)=>'<button type="button" class="block-game-cell '+(v?'filled':'')+'" data-cell="'+x+','+y+'" aria-label="Клетка '+(x+1)+','+(y+1)+'"></button>').join('')).join('');
  $('blockGamePieces').innerHTML=blockGame.pieces.map((shape,i)=>'<button type="button" class="block-game-piece '+(i===blockGame.selected?'selected':'')+'" data-piece="'+i+'" '+(shape?'':'disabled')+'>'+((shape||[]).map(([x,y])=>'<i style="grid-column:'+(x+1)+';grid-row:'+(y+1)+'"></i>').join(''))+'</button>').join('');
- $('blockGameLines').textContent=blockGame.lines;$('blockGameReward').textContent=blockGame.lines*5;
+ $('blockGameLines').textContent=blockGame.lines;$('blockGameReward').textContent=Math.min(10,blockGame.lines)*5;
 }
 function blockGameFinish(){
  if(blockGame.ending||!blockGame.id)return;blockGame.ending=true;
  const lines=Math.min(10,blockGame.lines),wait=Math.max(0,30000-(Date.now()-blockGame.startedAt));
  $('blockGameStatus').textContent=wait?'Раунд завершён. Подтверждаем результат…':'Раунд завершён.';
- setTimeout(async()=>{const {data,error}=await sb.rpc('finish_pixy_block_game',{p_game_id:blockGame.id,p_lines:lines});if(error){$('blockGameStatus').textContent='Не удалось подтвердить игру: '+error.message;return}blockGame.id=null;$('blockGameStart').disabled=false;$('blockGameStatus').textContent='Готово! Начислено '+(lines*5)+' XION. Можно сыграть ещё раз сегодня, если осталась попытка.';await loadWallet()},wait);
+ setTimeout(async()=>{const {data,error}=await sb.rpc('finish_pixy_block_game',{p_game_id:blockGame.id,p_lines:lines});if(error){$('blockGameStart').disabled=false;$('blockGameStatus').textContent='Не удалось подтвердить игру: '+error.message;return}blockGame.id=null;$('blockGameStart').disabled=false;$('blockGameStatus').textContent='Готово! Начислено '+(lines*5)+' XION. Можно сыграть ещё раз сегодня, если осталась попытка.';await loadWallet()},wait);
 }
 function blockGamePlace(x,y){
  if(!blockGame.id||blockGame.ending)return;const shape=blockGame.pieces[blockGame.selected];if(!shape||!blockGameCanPlace(shape,x,y))return;

@@ -58,9 +58,9 @@ function nav(view){
  const target=$('view-'+view);
  if(target){target.classList.remove('hidden');target.classList.remove('view-enter');void target.offsetWidth;target.classList.add('view-enter')}
  document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===view));
- const titles={home:['ТВОЯ ЛЕНТА','Главная'],settings:['НАСТРОЙКИ PIXY','Настройки'], 'my-gifts':['ТВОЯ КОЛЛЕКЦИЯ','Мои подарки'],music:['PIXY MUSIC','Музыкальный плеер'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],notifications:['ТВОЯ АКТИВНОСТЬ','Уведомления'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация']};
+ const titles={home:['ТВОЯ ЛЕНТА','Главная'],settings:['НАСТРОЙКИ PIXY','Настройки'], 'my-gifts':['ТВОЯ КОЛЛЕКЦИЯ','Мои подарки'],music:['PIXY MUSIC','Музыкальный плеер'],videos:['КОРОТКИЙ ФОРМАТ','PIX Video'],search:['ЛЮДИ PIXY','Поиск'],profile:['ТВОЁ ПРОСТРАНСТВО','Мой профиль'],messages:['ЛИЧНОЕ','Сообщения'],notifications:['ТВОЯ АКТИВНОСТЬ','Уведомления'],wallet:['ТВОЙ БАЛАНС','Мои XION'],shop:['КАСТОМИЗАЦИЯ','Магазин'],moderation:['УПРАВЛЕНИЕ PIXY','Модерация'],'block-game':['PIXY ARCADE','Зарабатывать XION']};
  $('pageEyebrow').textContent=titles[view]?.[0]||'PIXY';$('pageTitle').textContent=titles[view]?.[1]||'PIXY';
- if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='notifications'&&user){localStorage.setItem(activitySeenKey(),String(Date.now()));setActivityBadge(0);loadNotifications();}if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();if(view==='settings'&&user)loadPixySettings();if(view==='my-gifts'&&user)loadMyGifts();
+ if(view==='profile'&&user)loadProfilePosts();if(view==='videos'&&user)loadVideos();if(view==='messages'&&user)loadChatList();if(view==='notifications'&&user){localStorage.setItem(activitySeenKey(),String(Date.now()));setActivityBadge(0);loadNotifications();}if(view==='shop'&&user)loadShop();if(view==='wallet'&&user)loadWallet();if(view==='settings'&&user)loadPixySettings();if(view==='my-gifts'&&user)loadMyGifts();if(view==='block-game'&&user)loadBlockGameStatus();if(view==='wallet'&&user)loadSavings();
 }
 document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();nav(v.dataset.view)}const c=e.target.closest('[data-close]');if(c){if(c.dataset.close==='composerModal'&&typeof stopCamera==='function'){stopCamera();stopComposerPreviewAudio();}$(c.dataset.close).classList.add('hidden')}});
 $('showSignup').onclick=()=>setAuth('signup');
@@ -325,7 +325,51 @@ async function loadMyGifts(){
  }).join('')||'<div class="empty-state"><h2>Коллекция пока пуста</h2><p>Купи подарок себе или получи его от другого пользователя.</p></div>';
  $('soldGiftHistory').innerHTML=(sold||[]).map(g=>'<div><span>'+safe(names[g.gift_id]||g.gift_id)+(g.serial_number?' #'+safe(g.serial_number):'')+'</span><b>Продан за '+g.sale_price+' XION</b><small>'+new Date(g.sold_at).toLocaleString()+'</small></div>').join('')||'<p class="hint">Проданных подарков пока нет.</p>';
 }
-$('myGiftInventory')?.addEventListener('click',async e=>{const b=e.target.closest('[data-sell-gift]');if(!b||!user)return;if(!confirm('Продать подарок? Комиссия PIXY — 3 XION. На твой баланс поступит стоимость подарка минус 3 XION.'))return;b.disabled=true;const {data,error}=await sb.rpc('sell_owned_gift',{inventory_id:b.dataset.sellGift});b.disabled=false;if(error)return toast('Не удалось продать подарок: '+error.message);toast('Подарок продан. Начислено '+data+' XION.');await Promise.all([loadMyGifts(),loadWallet()])});
+$('myGiftInventory')?.addEventListener('click',async e=>{const b=e.target.closest('[data-sell-gift]');if(!b||!user)return;if(!confirm('Продать подарок? 20% чистой суммы уйдёт в копилку, 3 XION — комиссия PIXY.'))return;b.disabled=true;const {data,error}=await sb.rpc('sell_owned_gift',{inventory_id:b.dataset.sellGift});b.disabled=false;if(error)return toast('Не удалось продать подарок: '+error.message);toast('Подарок продан. Баланс обновлён, 20% отправлено в копилку.');await Promise.all([loadMyGifts(),loadWallet(),loadSavings()])});
+
+async function loadSavings(){
+ if(!sb||!user)return;
+ const {data,error}=await sb.from('xion_savings').select('balance,unlock_at').eq('user_id',user.id).maybeSingle();
+ if(error){console.warn('PIXY savings:',error);return}
+ const balance=Number(data?.balance||0),unlock=data?.unlock_at?new Date(data.unlock_at):null,unlocked=!unlock||Date.now()>=unlock.getTime();
+ $('savingsBalance').textContent=balance;
+ $('savingsUnlockAt').textContent=balance===0?'Копилка пуста. Пополни её вручную или продай подарок — 20% поступит автоматически.':unlocked?'Копилка открыта. Можно забрать все накопления или продолжить копить.':'Копилка закрыта до '+unlock.toLocaleString()+'. Новое пополнение запустит отсчёт 24 часов заново.';
+ $('savingsWithdrawBtn').disabled=balance<=0||!unlocked;
+}
+document.querySelectorAll('[data-wallet-tab]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('[data-wallet-tab]').forEach(x=>x.classList.toggle('active',x===btn));$('walletBalanceTab').classList.toggle('hidden',btn.dataset.walletTab!=='balance');$('walletSavingsTab').classList.toggle('hidden',btn.dataset.walletTab!=='savings');if(btn.dataset.walletTab==='savings')loadSavings()}));
+$('savingsDepositBtn')?.addEventListener('click',async()=>{const amount=Math.floor(Number($('savingsDepositAmount').value));if(!Number.isSafeInteger(amount)||amount<=0)return toast('Введи сумму больше нуля.');const b=$('savingsDepositBtn');b.disabled=true;const {data,error}=await sb.rpc('deposit_xion_savings',{p_amount:amount});b.disabled=false;if(error)return toast(error.message);$('savingsDepositAmount').value='';toast('XION отправлены в копилку. Она закрыта на 24 часа.');await Promise.all([loadWallet(),loadSavings()])});
+$('savingsWithdrawBtn')?.addEventListener('click',async()=>{if(!confirm('Открыть копилку и перевести все накопления на баланс?'))return;const b=$('savingsWithdrawBtn');b.disabled=true;const {data,error}=await sb.rpc('withdraw_xion_savings');b.disabled=false;if(error)return toast(error.message);toast('Копилка открыта. XION возвращены на баланс.');await Promise.all([loadWallet(),loadSavings()])});
+const BLOCK_SHAPES=[[[0,0]],[[0,0],[1,0]],[[0,0],[0,1]],[[0,0],[1,0],[0,1]],[[0,0],[1,0],[2,0]],[[0,0],[0,1],[0,2]],[[0,0],[1,0],[2,0],[1,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[2,0],[0,1]],[[0,0],[0,1],[1,1],[2,1]]];
+let blockGame={id:null,board:[],pieces:[],selected:0,lines:0,startedAt:0,ending:false};
+function blockGameCanPlace(shape,x,y){return shape.every(([dx,dy])=>{const xx=x+dx,yy=y+dy;return xx>=0&&xx<8&&yy>=0&&yy<8&&!blockGame.board[yy][xx]})}
+function renderBlockGame(){
+ const board=$('blockGameBoard');if(!board)return;
+ board.innerHTML=blockGame.board.map((row,y)=>row.map((v,x)=>'<button type="button" class="block-game-cell '+(v?'filled':'')+'" data-cell="'+x+','+y+'" aria-label="Клетка '+(x+1)+','+(y+1)+'"></button>').join('')).join('');
+ $('blockGamePieces').innerHTML=blockGame.pieces.map((shape,i)=>'<button type="button" class="block-game-piece '+(i===blockGame.selected?'selected':'')+'" data-piece="'+i+'" '+(shape?'':'disabled')+'>'+((shape||[]).map(([x,y])=>'<i style="grid-column:'+(x+1)+';grid-row:'+(y+1)+'"></i>').join(''))+'</button>').join('');
+ $('blockGameLines').textContent=blockGame.lines;$('blockGameReward').textContent=blockGame.lines*5;
+}
+function blockGameFinish(){
+ if(blockGame.ending||!blockGame.id)return;blockGame.ending=true;
+ const lines=Math.min(10,blockGame.lines),wait=Math.max(0,30000-(Date.now()-blockGame.startedAt));
+ $('blockGameStatus').textContent=wait?'Раунд завершён. Подтверждаем результат…':'Раунд завершён.';
+ setTimeout(async()=>{const {data,error}=await sb.rpc('finish_pixy_block_game',{p_game_id:blockGame.id,p_lines:lines});if(error){$('blockGameStatus').textContent='Не удалось подтвердить игру: '+error.message;return}blockGame.id=null;$('blockGameStatus').textContent='Готово! Начислено '+(lines*5)+' XION. Можно сыграть ещё раз сегодня, если осталась попытка.';await loadWallet()},wait);
+}
+function blockGamePlace(x,y){
+ if(!blockGame.id||blockGame.ending)return;const shape=blockGame.pieces[blockGame.selected];if(!shape||!blockGameCanPlace(shape,x,y))return;
+ shape.forEach(([dx,dy])=>blockGame.board[y+dy][x+dx]=1);blockGame.pieces[blockGame.selected]=null;
+ let rows=[];for(let yy=0;yy<8;yy++)if(blockGame.board[yy].every(Boolean))rows.push(yy);
+ let cols=[];for(let xx=0;xx<8;xx++)if(blockGame.board.every(row=>row[xx]))cols.push(xx);
+ const cleared=new Set();rows.forEach(yy=>{for(let xx=0;xx<8;xx++)cleared.add(yy+','+xx)});cols.forEach(xx=>{for(let yy=0;yy<8;yy++)cleared.add(yy+','+xx)});
+ cleared.forEach(key=>{const [xx,yy]=key.split(',').map(Number);blockGame.board[yy][xx]=0});
+ blockGame.lines+=rows.length+cols.length;
+ if(blockGame.pieces.every(p=>!p))blockGame.pieces=Array.from({length:3},()=>BLOCK_SHAPES[Math.floor(Math.random()*BLOCK_SHAPES.length)]);
+ if(blockGame.pieces.every(p=>!p||!Array.from({length:8},(_,yy)=>Array.from({length:8},(_,xx)=>blockGameCanPlace(p,xx,yy))).some(a=>a.some(Boolean))))blockGameFinish();
+ renderBlockGame();
+}
+$('blockGameStart')?.addEventListener('click',async()=>{const b=$('blockGameStart');b.disabled=true;const {data,error}=await sb.rpc('start_pixy_block_game');b.disabled=false;if(error)return toast(error.message);blockGame={id:data,board:Array.from({length:8},()=>Array(8).fill(0)),pieces:Array.from({length:3},()=>BLOCK_SHAPES[Math.floor(Math.random()*BLOCK_SHAPES.length)]),selected:0,lines:0,startedAt:Date.now(),ending:false};$('blockGameBoardWrap').classList.remove('hidden');$('blockGameStatus').textContent='Hardcore · размещай фигуры и очищай линии.';renderBlockGame()});
+$('blockGameBoard')?.addEventListener('click',e=>{const cell=e.target.closest('[data-cell]');if(!cell)return;const [x,y]=cell.dataset.cell.split(',').map(Number);blockGamePlace(x,y)});
+$('blockGamePieces')?.addEventListener('click',e=>{const p=e.target.closest('[data-piece]');if(!p||!blockGame.pieces[Number(p.dataset.piece)])return;blockGame.selected=Number(p.dataset.piece);renderBlockGame()});
+async function loadBlockGameStatus(){if(!sb||!user)return;$('blockGameBoardWrap').classList.add('hidden');$('blockGameStatus').textContent='Доступно до двух игровых попыток в сутки. Награда: 5 XION за линию.'}
 async function checkPixyAnnouncements(){if(!sb||!user)return;try{await sb.rpc('publish_due_pixy_announcements');const {data}=await sb.from('announcements').select('id,title,body,published_at').not('published_at','is',null).order('published_at',{ascending:false}).limit(10);const key='pixy-announcements-seen-'+user.id;let seen=[];try{seen=JSON.parse(localStorage.getItem(key)||'[]')}catch(_){}for(const item of data||[]){if(!seen.includes(item.id)){toast(item.title+': '+item.body);seen.push(item.id)}}localStorage.setItem(key,JSON.stringify(seen.slice(0,50)))}catch(err){console.warn('PIXY announcements:',err)}}
 function startPixyBackgroundPolling(){if(!announcementPollTimer)announcementPollTimer=setInterval(checkPixyAnnouncements,12000);if(!activityPollTimer)activityPollTimer=setInterval(()=>{if(user&&document.visibilityState==='visible'){loadNotifications();checkPixyAnnouncements()}},45000)}
 document.addEventListener('visibilitychange',()=>{if(user&&document.visibilityState==='visible'){loadNotifications();checkPixyAnnouncements()}});
@@ -1620,8 +1664,8 @@ async function loadWallet(){
  const senderIds=[...new Set((gifts||[]).map(g=>g.sender_id))];const {data:senders}=senderIds.length?await sb.from('profiles').select('id,username').in('id',senderIds):{data:[]};const senderMap=Object.fromEntries((senders||[]).map(p=>[p.id,p.username]));
  $('receivedGifts').innerHTML=(gifts||[]).map(g=>'<div class="received-gift-item">'+giftArtMarkup(g.gift_id)+'<span>от @'+safe(senderMap[g.sender_id]||'user')+'<small>Стоимость подарка: '+(Number(g.purchase_price)||0)+' '+xionIcon()+'</small></span><small>'+new Date(g.created_at).toLocaleDateString()+'</small></div>').join('')||'<p>Подарков пока нет.</p>';
 }
-let neftPriceRefreshTimer=null;
-function startNeftPriceRefresh(){if(neftPriceRefreshTimer)return;let lastInventoryRefresh=0;neftPriceRefreshTimer=setInterval(()=>{if(!user||document.hidden)return;if(!$('view-shop').classList.contains('hidden'))refreshGiftShopPrices();if(!$('view-my-gifts').classList.contains('hidden')&&Date.now()-lastInventoryRefresh>=60000){lastInventoryRefresh=Date.now();loadMyGifts()}},1000)}
+let neftPriceRefreshTimer=null;let lastMarketRefresh=0;
+function startNeftPriceRefresh(){if(neftPriceRefreshTimer)return;let lastInventoryRefresh=0;neftPriceRefreshTimer=setInterval(()=>{if(!user||document.hidden)return;if(!$('view-shop').classList.contains('hidden')){if(Date.now()-lastMarketRefresh>=60000){lastMarketRefresh=Date.now();sb.rpc('refresh_gift_market').then(r=>{if(!r.error)loadShop()})}refreshGiftShopPrices();}if(!$('view-my-gifts').classList.contains('hidden')&&Date.now()-lastInventoryRefresh>=60000){lastInventoryRefresh=Date.now();loadMyGifts()}},1000)}
 let shopLoadPromise=null;
 async function loadShop(){
  if(!sb||!user)return;
@@ -1632,7 +1676,7 @@ async function loadShop(){
   // Do not manually refresh the auth session from a view loader.
   // Supabase handles token refresh; forcing refresh here can contend with
   // other requests and auth callbacks while the user is navigating.
-  const [{data:bg,error:be},{data:gs,error:ge}]=await withTimeout(Promise.all([
+  const marketResult=await sb.rpc('refresh_gift_market');if(marketResult.error)throw marketResult.error;\n  const [{data:bg,error:be},{data:gs,error:ge}]=await withTimeout(Promise.all([
    sb.from('profile_backgrounds').select('id,title,price_xion,sort_order').order('sort_order'),
    sb.from('gift_catalog').select('id,title,emoji,price_xion,sort_order,kind,rarity,design_number,background_key,price_growth_per_hour,price_growth_amount,price_growth_interval_minutes,price_started_at,supply_limit').eq('available',true).order('sort_order')
   ]),15000,'Магазин не ответил за 15 секунд. Попробуй ещё раз.');
